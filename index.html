@@ -8,61 +8,129 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 20px;
+      margin: 0;
       background-color: #f9f9f9;
       color: #333;
     }
+
     header {
       text-align: center;
-      margin-bottom: 40px;
+      padding: 20px;
+      background-color: #1a73e8;
+      color: white;
     }
-    h1 {
+
+    header h1 {
       margin: 0;
       font-size: 2.5em;
     }
-    p.description {
+
+    header p {
+      margin-top: 10px;
       font-size: 1.2em;
-      color: #555;
     }
-    ul.exercises {
+
+    /* Layout */
+    .container {
+      display: flex;
+      min-height: 80vh;
+    }
+
+    nav {
+      width: 220px;
+      background-color: #ffffff;
+      border-right: 1px solid #ddd;
+      padding: 20px;
+    }
+
+    nav h2 {
+      font-size: 1.5em;
+      margin-bottom: 20px;
+    }
+
+    nav ul {
       list-style: none;
       padding: 0;
     }
-    ul.exercises li {
-      margin: 15px 0;
+
+    nav ul li {
+      margin-bottom: 15px;
     }
-    ul.exercises li a {
+
+    nav ul li a {
       text-decoration: none;
       color: #1a73e8;
       font-weight: bold;
     }
-    ul.exercises li a:hover {
+
+    nav ul li a:hover {
       text-decoration: underline;
+    }
+
+    main {
+      flex: 1;
+      padding: 40px 20px;
+    }
+
+    main h2 {
+      font-size: 2em;
+      margin-bottom: 20px;
+    }
+
+    main p {
+      font-size: 1.1em;
+      line-height: 1.6;
+      color: #555;
+    }
+
+    footer {
+      text-align: center;
+      padding: 20px;
+      background-color: #f1f1f1;
+      color: #888;
+    }
+
+    /* Responsive for smaller screens */
+    @media (max-width: 768px) {
+      .container {
+        flex-direction: column;
+      }
+
+      nav {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #ddd;
+      }
+
+      main {
+        padding: 20px;
+      }
     }
   </style>
 </head>
 <body>
   <header>
     <h1>Libre Math</h1>
-    <p class="description">Open and free mathematics exercises for learning and practice.</p>
+    <p>Open and free mathematics exercises for learning and practice.</p>
   </header>
 
-  <main>
-    <section>
-      <h2>Exercises</h2>
-      <ul class="exercises">
-        <li><a href="exercises/ex1.html">Exercise 1: Basic Arithmetic</a></li>
-        <li><a href="exercises/ex2.html">Exercise 2: Algebra</a></li>
-        <li><a href="exercises/ex3.html">Exercise 3: Geometry</a></li>
+  <div class="container">
+    <nav>
+      <h2>Lessons</h2>
+      <ul>
+        <li><a href="exercises/ex1.html">Lesson 1: Basic Arithmetic</a></li>
+        <li><a href="exercises/ex2.html">Lesson 2: Algebra</a></li>
+        <li><a href="exercises/ex3.html">Lesson 3: Geometry</a></li>
       </ul>
-    </section>
+    </nav>
 
-  
-  </main>
+    <main>
+      <h2>Welcome to Libre Math</h2>
+      <p>This site offers open and free mathematics exercises designed to help learners at all levels. You can explore lessons on arithmetic, algebra, geometry, and more. Each lesson contains interactive exercises and explanations to enhance your understanding. Use the links on the left to navigate through different lessons.</p>
+    </main>
+  </div>
 
-  <footer style="text-align:center; margin-top:50px; color:#888;">
+  <footer>
     &copy; 2025 Libre Math
   </footer>
 </body>
