@@ -1,0 +1,61 @@
+:root {
+  --bg-color: #f9f9f9;
+  --text-color: #333;
+  --header-bg: #1a73e8;
+  --nav-bg: #ffffff;
+  --border-color: #ddd;
+}
+
+body.dark {
+  --bg-color: #121212;
+  --text-color: #e0e0e0;
+  --header-bg: #1f1f1f;
+  --nav-bg: #1a1a1a;
+  --border-color: #333;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  margin: 0;
+  font-family: Arial, sans-serif;
+}
+
+/* Layout */
+.container {
+  display: flex;
+  min-height: 80vh;
+}
+
+header {
+  background-color: var(--header-bg);
+  color: white;
+  padding: 20px;
+  text-align: center;
+}
+
+nav {
+  width: 220px;
+  background-color: var(--nav-bg);
+  border-right: 1px solid var(--border-color);
+  padding: 20px;
+}
+
+main {
+  flex: 1;
+  padding: 40px 20px;
+}
+
+footer {
+  text-align: center;
+  padding: 20px;
+  background-color: var(--nav-bg);
+  border-top: 1px solid var(--border-color);
+}
+
+/* Button */
+#theme-toggle {
+  margin-top: 15px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
