@@ -4,134 +4,43 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Libre Math</title>
-  <link rel="stylesheet" href="style.css">
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      background-color: #f9f9f9;
-      color: #333;
-    }
 
-    header {
-      text-align: center;
-      padding: 20px;
-      background-color: #1a73e8;
-      color: white;
-    }
-
-    header h1 {
-      margin: 0;
-      font-size: 2.5em;
-    }
-
-    header p {
-      margin-top: 10px;
-      font-size: 1.2em;
-    }
-
-    /* Layout */
-    .container {
-      display: flex;
-      min-height: 80vh;
-    }
-
-    nav {
-      width: 220px;
-      background-color: #ffffff;
-      border-right: 1px solid #ddd;
-      padding: 20px;
-    }
-
-    nav h2 {
-      font-size: 1.5em;
-      margin-bottom: 20px;
-    }
-
-    nav ul {
-      list-style: none;
-      padding: 0;
-    }
-
-    nav ul li {
-      margin-bottom: 15px;
-    }
-
-    nav ul li a {
-      text-decoration: none;
-      color: #1a73e8;
-      font-weight: bold;
-    }
-
-    nav ul li a:hover {
-      text-decoration: underline;
-    }
-
-    main {
-      flex: 1;
-      padding: 40px 20px;
-    }
-
-    main h2 {
-      font-size: 2em;
-      margin-bottom: 20px;
-    }
-
-    main p {
-      font-size: 1.1em;
-      line-height: 1.6;
-      color: #555;
-    }
-
-    footer {
-      text-align: center;
-      padding: 20px;
-      background-color: #f1f1f1;
-      color: #888;
-    }
-
-    /* Responsive for smaller screens */
-    @media (max-width: 768px) {
-      .container {
-        flex-direction: column;
-      }
-
-      nav {
-        width: 100%;
-        border-right: none;
-        border-bottom: 1px solid #ddd;
-      }
-
-      main {
-        padding: 20px;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+
   <header>
     <h1>Libre Math</h1>
     <p>Open and free mathematics exercises for learning and practice.</p>
+
+    <button id="theme-toggle" aria-label="Toggle dark mode">
+      🌙 Night mode
+    </button>
   </header>
 
   <div class="container">
     <nav>
       <h2>Lessons</h2>
       <ul>
-        <li><a href="exercises/ex1.html">Lesson 1: Basic Arithmetic</a></li>
-        <li><a href="exercises/ex2.html">Lesson 2: Algebra</a></li>
-        <li><a href="exercises/ex3.html">Lesson 3: Geometry</a></li>
+        <li><a href="exercises/ex1.html">Lesson 1</a></li>
+        <li><a href="exercises/ex2.html">Lesson 2</a></li>
+        <li><a href="exercises/ex3.html">Lesson 3</a></li>
       </ul>
     </nav>
 
     <main>
-      <h2>Welcome to Libre Math</h2>
-      <p>This site offers open and free mathematics exercises designed to help learners at all levels. You can explore lessons on arithmetic, algebra, geometry, and more. Each lesson contains interactive exercises and explanations to enhance your understanding. Use the links on the left to navigate through different lessons.</p>
+      <h2>Welcome</h2>
+      <p>
+        This project provides open mathematics exercises. Use the menu
+        on the left to navigate through lessons.
+      </p>
     </main>
   </div>
 
   <footer>
     &copy; 2025 Libre Math
   </footer>
+
+  <script src="js/theme.js"></script>
 </body>
 </html>
