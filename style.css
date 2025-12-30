@@ -40,7 +40,24 @@ nav {
   border-right: 1px solid var(--border-color);
   padding: 20px;
 }
+nav h2 {
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+}
 
+nav ul li a {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: var(--link-color);
+}
+
+nav ul li a:hover {
+  background-color: rgba(37, 99, 235, 0.08);
+  text-decoration: none;
+}
 main {
   flex: 1;
   padding: 40px 20px;
