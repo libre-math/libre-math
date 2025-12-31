@@ -32,8 +32,26 @@ body {
 header {
   background-color: var(--header-bg);
   color: white;
-  padding: 20px;
-  text-align: center;
+  padding: 12px 24px;          /* less vertical height */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-title {
+  display: flex;
+  flex-direction: column;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+header p {
+  margin: 2px 0 0;
+  font-size: 0.9rem;
+  opacity: 0.85;
 }
 
 nav {
@@ -74,7 +92,15 @@ footer {
 
 /* Button */
 #theme-toggle {
-  margin-top: 15px;
-  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: white;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+  border-radius: 6px;
   cursor: pointer;
+}
+
+#theme-toggle:hover {
+  background-color: rgba(255, 255, 255, 0.1);
 }
