@@ -87,6 +87,33 @@ main li {
   text-align: justify;
 }
 
+.math-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 30px 0;
+  font-size: 1rem;
+}
+
+.math-table th,
+.math-table td {
+  border: 1px solid var(--border-color);
+  padding: 12px;
+  text-align: center;
+}
+
+.math-table thead {
+  background-color: var(--nav-bg);
+  font-weight: 600;
+}
+
+.math-table tbody tr:nth-child(even) {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+body.dark .math-table tbody tr:nth-child(even) {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
 footer {
   text-align: center;
   padding: 20px;
