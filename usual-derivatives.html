@@ -99,22 +99,91 @@ f'(x) = \lim_{h \to 0} \frac{f(x+h) - f(x)}{h}
 </table>
 
     <p>
-      We should also note that the derivative of a sum is equal to the sum of the derivatives of each individual component. This also works for subtractions. This property is especially important, as it allows us to treat each component of a sum individually when computing derivatives. This can be written as:
-    </p>
+  We should also note that the derivative of a sum is equal to the sum of the derivatives of each individual component. This also works for subtractions. This property is especially important, as it allows us to treat each component of a sum individually when computing derivatives. This can be written as:
+</p>
 
-    <p>
-      \[
-      \frac{d}{dx}\big[f(x) + g(x)\big] = \frac{d}{dx}f(x) + \frac{d}{dx}g(x)
-      \]
-    </p>
+<p>
+\[
+\frac{d}{dx}\big[f(x) + g(x)\big] = \frac{d}{dx}f(x) + \frac{d}{dx}g(x)
+\]
+</p>
 
-    <p>
-      \[
-      \frac{d}{dx}\big[f(x) - g(x)\big] = \frac{d}{dx}f(x) - \frac{d}{dx}g(x)
-      \]
-    </p>
+<p>
+\[
+\frac{d}{dx}\big[f(x) - g(x)\big] = \frac{d}{dx}f(x) - \frac{d}{dx}g(x)
+\]
+</p>
 
-    <h2>Examples</h2>
+<p>
+Another fundamental property of differentiation is the constant multiple rule.  
+If \(k\) is a real constant and \(f(x)\) is a differentiable function, then:
+</p>
+
+<p>
+\[
+\frac{d}{dx}\big[k f(x)\big] = k \frac{d}{dx}f(x)
+\]
+</p>
+
+<p>
+This rule only applies when multiplying a function by a constant.  
+When dealing with products where both factors depend on the variable, we must rely on more complex rules, which will be detailed in the following lesson.
+</p>
+
+<h2>Examples</h2>
+
+<p>
+We now apply the differentiation rules to compute derivatives of simple functions.
+</p>
+
+<h3>Example 1: Polynomial function</h3>
+
+<p>
+Let \( f(x) = x^3 + 5x \).
+</p>
+
+<p>
+We make use of the linearity of differentiation, and compute the derivative of each term separately:
+</p>
+
+<p>
+\[
+f'(x) = 3x^2 + 5
+\]
+</p>
+
+<h3>Example 2: Exponential function</h3>
+
+<p>
+Let \( g(x) = 2e^x \).
+</p>
+
+<p>
+Since the derivative of the exponential function is itself:
+</p>
+
+<p>
+\[
+g'(x) = 2e^x
+\]
+</p>
+
+<h3>Example 3: Combination of functions</h3>
+
+<p>
+Let \( h(x) = 2x^2 - 4x + 7 \).
+</p>
+
+<p>
+Applying the constant multiple rule and the sum rule:
+</p>
+
+<p>
+\[
+h'(x) = 4x - 4
+\]
+</p>
+    
   </main>
 </div>
  
