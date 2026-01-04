@@ -87,31 +87,23 @@ main li {
   text-align: justify;
 }
 
-.math-table {
-  width: 100%;
+.derivatives-table {
+  width: 80%;
+  margin: 30px auto;
   border-collapse: collapse;
-  margin: 30px 0;
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
 
-.math-table th,
-.math-table td {
-  border: 1px solid var(--border-color);
-  padding: 12px;
+.derivatives-table th,
+.derivatives-table td {
+  padding: 10px 14px;
   text-align: center;
+  border-bottom: 1px solid var(--border-color);
 }
 
-.math-table thead {
-  background-color: var(--nav-bg);
+.derivatives-table thead th {
   font-weight: 600;
-}
-
-.math-table tbody tr:nth-child(even) {
-  background-color: rgba(0, 0, 0, 0.03);
-}
-
-body.dark .math-table tbody tr:nth-child(even) {
-  background-color: rgba(255, 255, 255, 0.04);
+  border-bottom: 2px solid var(--border-color);
 }
 
 footer {
