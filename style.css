@@ -83,6 +83,10 @@ main {
   padding: 40px 20px;
 }
 
+main li {
+  text-align: justify;
+}
+
 footer {
   text-align: center;
   padding: 20px;
