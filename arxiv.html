@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Browse the newest mathematics papers from arXiv — technical report style.">
+  <meta name="description" content="Browse mathematics and science papers from arXiv — technical report style.">
   <title>arXiv Papers | Libre Math</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,7 +21,7 @@
     <header class="report-header">
       <div class="report-header-left">
         <div class="report-agency">LIBRE MATH · TECHNICAL MEMORANDUM</div>
-        <h1 class="report-title">arXiv Mathematics Papers</h1>
+        <h1 class="report-title">arXiv Papers</h1>
       </div>
       <div class="report-header-right">
         <button id="theme-toggle" class="btn" aria-label="Toggle theme">Dark</button>
@@ -46,9 +46,9 @@
         </div>
 
         <div class="control-group search-group">
-          <label for="keyword-input">Keyword search</label>
+          <label for="keyword-input">Keyword search (title only)</label>
           <div class="search-row">
-            <input type="text" id="keyword-input" placeholder="e.g. modular forms, random matrix…" autocomplete="off">
+            <input type="text" id="keyword-input" placeholder="e.g. black hole, portfolio, transformer…" autocomplete="off">
             <button id="search-btn" class="btn">Search</button>
             <button id="search-all-btn" class="btn btn-outline" title="Search across all listed categories">Search all</button>
           </div>
@@ -74,9 +74,7 @@
           <div class="paper-actions">
             <a id="paper-abs-link" class="btn" target="_blank" rel="noopener">Abstract page</a>
             <a id="paper-pdf-link" class="btn" target="_blank" rel="noopener">PDF</a>
-          </div>
-          <div class="paper-actions" style="margin-top: 1rem;">
-            <button id="next-paper-btn" class="btn">Next paper →</button>
+            <button id="random-paper-btn" class="btn">Random paper</button>
           </div>
         </div>
       </section>
@@ -88,7 +86,7 @@
           <div class="results-nav">
             <button id="prev-btn" class="btn btn-outline" disabled>← Previous</button>
             <span id="results-info" class="mono"></span>
-            <button id="random-paper-btn" class="btn">Random paper</button>
+            <button id="next-btn" class="btn btn-outline" disabled>Next 10 →</button>
           </div>
         </div>
         <div id="results-box" class="results-box"></div>
