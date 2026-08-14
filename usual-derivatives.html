@@ -3,7 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="A lesson on the usual derivatives: standard functions, differentiation rules, and worked examples.">
   <title>Usual Derivatives | Libre Math</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="style.css">
   <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
@@ -13,26 +18,27 @@
 </head>
 <body>
 
+<a class="skip-link" href="#main-content">Skip to content</a>
+
 <header>
   <div class="header-title">
     <h1>Libre Math</h1>
     <p>Usual Derivatives</p>
   </div>
-
-  <button id="theme-toggle" aria-label="Toggle dark mode">🌙</button>
+  <button id="theme-toggle" aria-label="Toggle dark mode" aria-pressed="false">🌙</button>
 </header>
 
 <div class="container">
-  <nav>
+  <nav aria-label="Lessons">
     <h2>Lessons</h2>
     <ul>
       <li><a href="index.html">Home</a></li>
-      <li><strong>Usual Derivatives</strong></li>
+      <li><strong aria-current="page">Usual Derivatives</strong></li>
     </ul>
   </nav>
 
-  <main>
- <h2>Objectives</h2>
+  <main id="main-content">
+    <h2>Objectives</h2>
     <ul>
       <li>Identify the usual derivatives of standard functions.</li>
       <li>Use basic differentiation rules to compute derivatives of simple functions.</li>
@@ -41,177 +47,145 @@
 
     <h2>Context</h2>
 
-<p>
-  Derivatives are the core of the analysis field and allow us to study how functions vary. Differentiation as a whole is a helpful and versatile tool, widely used in mathematics, physics, and economics.
-</p>
-
-<p>
-  The basic intuition behind differentiation is simple: we look at the result of a function at two input values, and find out by how much it has varied. To have a more precise result, we take two closer points. This process does not stop at any fixed choice of points, but considers what happens as the two points get arbitrarily close to each other. By following this reasoning, we end up choosing points which are separated by <em>\(h\)</em>, a variable which is approaching 0. This is the intuition behind the mathematical definition of a derivative at a given point.
-</p>
-
-<p>
-\[
-f'(x) = \lim_{h \to 0} \frac{f(x+h) - f(x)}{h}
-\]
-</p>
-
-<p>
-  In practice, we rarely use this limit definition to compute derivatives of common functions. Instead, we rely on differentiation rules, summarized in the following table.
-</p>
-
-    <table class="derivatives-table">
-  <thead>
-    <tr>
-      <th>\(f(x)\)</th>
-      <th>\(f'(x)\)</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>\(k\)</td>
-      <td>\(0\)</td>
-    </tr>
-    <tr>
-      <td>\(x\)</td>
-      <td>\(1\)</td>
-    </tr>
-    <tr>
-      <td>\(kx\)</td>
-      <td>\(k\)</td>
-    </tr>
-    <tr>
-      <td>\(x^n\)</td>
-      <td>\(n x^{n-1}\)</td>
-    </tr>
-    <tr>
-      <td>\(e^x\)</td>
-      <td>\(e^x\)</td>
-    </tr>
-    <tr>
-      <td>\(\ln(x)\)</td>
-      <td>\(1/x\)</td>
-    </tr>
-    <tr>
-      <td>\(k^x\)</td>
-      <td>\(k^x \ln k\)</td>
-    </tr>
-  </tbody>
-</table>
+    <p>
+      Derivatives are the core of the analysis field and allow us to study how functions vary. Differentiation as a whole is a helpful and versatile tool, widely used in mathematics, physics, and economics.
+    </p>
 
     <p>
-  We should also note that the derivative of a sum is equal to the sum of the derivatives of each individual component. This also works for subtractions. This property is especially important, as it allows us to treat each component of a sum individually when computing derivatives. This can be written as:
-</p>
+      The basic intuition behind differentiation is simple: we look at the result of a function at two input values, and find out by how much it has varied. To have a more precise result, we take two closer points. This process does not stop at any fixed choice of points, but considers what happens as the two points get arbitrarily close to each other. By following this reasoning, we end up choosing points which are separated by <em>\(h\)</em>, a variable which is approaching 0. This is the intuition behind the mathematical definition of a derivative at a given point.
+    </p>
 
-<p>
-\[
-\frac{d}{dx}\big[f(x) + g(x)\big] = \frac{d}{dx}f(x) + \frac{d}{dx}g(x)
-\]
-</p>
+    <p>
+      \[
+      f'(x) = \lim_{h \to 0} \frac{f(x+h) - f(x)}{h}
+      \]
+    </p>
 
-<p>
-\[
-\frac{d}{dx}\big[f(x) - g(x)\big] = \frac{d}{dx}f(x) - \frac{d}{dx}g(x)
-\]
-</p>
+    <p>
+      In practice, we rarely use this limit definition to compute derivatives of common functions. Instead, we rely on differentiation rules, summarized in the following table.
+    </p>
 
-<p>
-Another fundamental property of differentiation is the constant multiple rule.  
-If \(k\) is a real constant and \(f(x)\) is a differentiable function, then:
-</p>
+    <table class="derivatives-table">
+      <thead>
+        <tr>
+          <th>\(f(x)\)</th>
+          <th>\(f'(x)\)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>\(k\)</td>
+          <td>\(0\)</td>
+        </tr>
+        <tr>
+          <td>\(x\)</td>
+          <td>\(1\)</td>
+        </tr>
+        <tr>
+          <td>\(kx\)</td>
+          <td>\(k\)</td>
+        </tr>
+        <tr>
+          <td>\(x^n\)</td>
+          <td>\(n x^{n-1}\)</td>
+        </tr>
+        <tr>
+          <td>\(e^x\)</td>
+          <td>\(e^x\)</td>
+        </tr>
+        <tr>
+          <td>\(\ln(x)\)</td>
+          <td>\(1/x\)</td>
+        </tr>
+        <tr>
+          <td>\(k^x\)</td>
+          <td>\(k^x \ln k\)</td>
+        </tr>
+      </tbody>
+    </table>
 
-<p>
-\[
-\frac{d}{dx}\big[k f(x)\big] = k \frac{d}{dx}f(x)
-\]
-</p>
+    <p>
+      We should also note that the derivative of a sum is equal to the sum of the derivatives of each individual component. This also works for subtractions. This property is especially important, as it allows us to treat each component of a sum individually when computing derivatives. This can be written as:
+    </p>
 
-<p>
-This rule only applies when multiplying a function by a constant.  
-When dealing with products where both factors depend on the variable, we must rely on more complex rules, which will be detailed in the following lesson.
-</p>
+    <p>
+      \[
+      \frac{d}{dx}\big[f(x) + g(x)\big] = \frac{d}{dx}f(x) + \frac{d}{dx}g(x)
+      \]
+    </p>
 
-<h2>Examples</h2>
+    <p>
+      \[
+      \frac{d}{dx}\big[f(x) - g(x)\big] = \frac{d}{dx}f(x) - \frac{d}{dx}g(x)
+      \]
+    </p>
 
-<p>
-We now apply the differentiation rules to compute derivatives of simple functions.
-</p>
+    <p>
+      Another fundamental property of differentiation is the constant multiple rule.
+      If \(k\) is a real constant and \(f(x)\) is a differentiable function, then:
+    </p>
 
-<h3>Example 1: Polynomial function</h3>
+    <p>
+      \[
+      \frac{d}{dx}\big[k f(x)\big] = k \frac{d}{dx}f(x)
+      \]
+    </p>
 
-<p>
-Let \( f(x) = x^3 + 5x \).
-</p>
+    <p>
+      This rule only applies when multiplying a function by a constant.
+      When dealing with products where both factors depend on the variable, we must rely on more complex rules, which will be detailed in the following lesson.
+    </p>
 
-<p>We make use of the rule on the derivatives of sums: the derivatives of each term can be found separately.</p>
+    <h2>Examples</h2>
 
-<p>
-\[
-f'(x) = 3x^2 + 5
-\]
-</p>
+    <p>
+      We now apply the differentiation rules to compute derivatives of simple functions.
+    </p>
 
-<h3>Example 2: Exponential function</h3>
+    <article class="example">
+      <span class="eyebrow">Example 1</span>
+      <h3>Polynomial function</h3>
+      <p>Let \( f(x) = x^3 + 5x \).</p>
+      <p>We make use of the rule on the derivatives of sums: the derivatives of each term can be found separately.</p>
+      <p>\[ f'(x) = 3x^2 + 5 \]</p>
+    </article>
 
-<p>
-Let \( g(x) = 2e^x \).
-</p>
+    <article class="example">
+      <span class="eyebrow">Example 2</span>
+      <h3>Exponential function</h3>
+      <p>Let \( g(x) = 2e^x \).</p>
+      <p>Here, we remember that the derivative of the exponential function is itself. The constant factor remains unchanged during the differentiation. Thus, we have:</p>
+      <p>\[ g'(x) = 2e^x \]</p>
+    </article>
 
-<p>Here, we remember that the derivative of the exponential function is itself. The constant factor remains unchanged during the differentiation. Thus, we have:&nbsp;</p>
+    <article class="example">
+      <span class="eyebrow">Example 3</span>
+      <h3>Combination of functions</h3>
+      <p>Let \( h(x) = 2x^2 - 4x + 7 \).</p>
+      <p>Again, we apply the constant multiple rule and the sum rule, while keeping in mind that the derivative of a constant is 0.</p>
+      <p>\[ h'(x) = 4x - 4 \]</p>
+    </article>
 
-<p>
-\[
-g'(x) = 2e^x
-\]
-</p>
+    <article class="example">
+      <span class="eyebrow">Example 4</span>
+      <h3>Natural logarithm function</h3>
+      <p>Let \( i(x) = 2\ln(x) \).</p>
+      <p>The derivative of the natural logarithm is \( \frac{1}{x} \), and the constant multiple rule applies, so the constant \(2\) remains as a factor:</p>
+      <p>\[ i'(x) = 2 \cdot \frac{1}{x} = \frac{2}{x} \]</p>
+    </article>
 
-<h3>Example 3: Combination of functions</h3>
-
-<p>
-Let \( h(x) = 2x^2 - 4x + 7 \).
-</p>
-
-<p>
-Again, we apply the constant multiple rule and the sum rule, while keeping in mind that the derivative of a constant is 0.
-</p>
-
-<p>
-\[
-h'(x) = 4x - 4
-\]
-</p>
-<h3>Example 4: Natural logarithm function</h3>
-
-<p>
-Let \( i(x) = 2\ln(x) \).
-</p>
-
-<p>
-The derivative of the natural logarithm is \( \frac{1}{x} \), and the constant multiple rule applies, so the constant \(2\) remains as a factor:
-</p>
-
-<p>
-\[
-i'(x) = 2 \cdot \frac{1}{x} = \frac{2}{x}
-\]
-</p>
-
-<h3>Example 5: Exponential with base other than e</h3>
-
-<p>
-Let \( j(x) = 4^x \).
-</p>
-<p>
-We differentiate the exponential function with a constant base using the standard rule for \(a^x\).  
-Note that this is different from the power rule, which applies when the variable is the base raised to a constant exponent. Here we have the reversed situation, the constant is the base and the variable is the exponent.
-</p>
-<p>
-\[
-j'(x) = 4^x \ln(4)
-\]
-</p>
+    <article class="example">
+      <span class="eyebrow">Example 5</span>
+      <h3>Exponential with base other than e</h3>
+      <p>Let \( j(x) = 4^x \).</p>
+      <p>
+        We differentiate the exponential function with a constant base using the standard rule for \(a^x\).
+        Note that this is different from the power rule, which applies when the variable is the base raised to a constant exponent. Here we have the reversed situation: the constant is the base and the variable is the exponent.
+      </p>
+      <p>\[ j'(x) = 4^x \ln(4) \]</p>
+    </article>
   </main>
 </div>
- 
 
 <footer>
   &copy; 2025 Libre Math
