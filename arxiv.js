@@ -41,15 +41,30 @@ themeToggle.addEventListener("click", () => {
 function parseEntries(xmlText) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(xmlText, "application/xml");
+
+  // Check for parser error
+  const parseError = doc.querySelector("parsererror");
+  if (parseError) {
+    console.error("XML parse error", parseError.textContent);
+    return [];
+  }
+
   const entries = [...doc.querySelectorAll("entry")];
   return entries.map(entry => {
-    const id = entry.querySelector("id")?.textContent?.trim() || "";
-    const arxivId = id.split("/abs/").pop() || id;
-    const title = (entry.querySelector("title")?.textContent || "").replace(/\s+/g, " ").trim();
-    const summary = (entry.querySelector("summary")?.textContent || "").replace(/\s+/g, " ").trim();
-    const published = entry.querySelector("published")?.textContent?.slice(0, 10) || "";
-    const authors = [...entry.querySelectorAll("author name")].map(n => n.textContent.trim()).join(", ");
-    const cats = [...entry.querySelectorAll("category")].map(c => c.getAttribute("term")).filter(Boolean).join(", ");
+    const idUrl = entry.querySelector("id")?.textContent?.trim() || "";
+    const arxivId = idUrl.split("/abs/").pop() || idUrl;
+    const title = (entry.querySelector("title")?.textContent || "")
+      .replace(/\s+/g, " ").trim();
+    const summary = (entry.querySelector("summary")?.textContent || "")
+      .replace(/\s+/g, " ").trim();
+    const published = (entry.querySelector("published")?.textContent || "").slice(0, 10);
+    const authors = [...entry.querySelectorAll("author name")]
+      .map(n => n.textContent.trim())
+      .join(", ");
+    const cats = [...entry.querySelectorAll("category")]
+      .map(c => c.getAttribute("term"))
+      .filter(Boolean)
+      .join(", ");
     return { arxivId, title, summary, published, authors, cats };
   });
 }
