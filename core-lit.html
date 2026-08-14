@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
 
   <style>
-    /* Same CSS as before with minor additions */
+    /* Same CSS as before */
     :root {
       --bg: #f4efe4;
       --bg-alt: #ebe4d6;
@@ -444,17 +444,6 @@
       font-size: 0.82rem;
     }
 
-    .oa-badge {
-      display: inline-block;
-      font-size: 0.7rem;
-      padding: 0.15rem 0.6rem;
-      background: #1a5c5c;
-      color: white;
-      font-family: "IBM Plex Mono", monospace;
-      letter-spacing: 0.05em;
-      border-radius: 0;
-    }
-
     .pdf-available {
       display: inline-block;
       font-size: 0.7rem;
@@ -637,11 +626,16 @@
 
   <script>
     // =========================================================
-    // CORE Technical Report — PDF-only filtering
+    // CORE Technical Report — Fixed query format
     // =========================================================
 
     const API = "https://api.core.ac.uk/v3/search/works";
-    const PROXY = "https://corsproxy.io/?";
+    // Use multiple proxies in case one fails
+    const PROXIES = [
+      "https://corsproxy.io/?",
+      "https://api.allorigins.win/raw?url=",
+      "https://cors-anywhere.herokuapp.com/"
+    ];
 
     const topicSelect = document.getElementById("topic-select");
     const issnInput = document.getElementById("issn-input");
@@ -711,7 +705,7 @@
       document.getElementById("paper-type").textContent = paper.type || "";
       
       const oaEl = document.getElementById("paper-oa");
-      if (paper.is_oa) {
+      if (paper.has_pdf) {
         oaEl.innerHTML = '<span class="pdf-available">✓ PDF Available</span>';
       } else {
         oaEl.innerHTML = '<span class="no-pdf">No PDF</span>';
@@ -764,10 +758,8 @@
           ? work.source_fulltext_urls[0] 
           : work.downloadUrl || "#";
         
-        // Check if PDF is available
         const pdf_url = work.downloadUrl || null;
-        const is_oa = work._openAccess || false;
-        const has_pdf = pdf_url !== null;
+        const has_pdf = pdf_url !== null && pdf_url !== "";
         
         return {
           id: id,
@@ -779,7 +771,6 @@
           type: type,
           core_url: core_url,
           pdf_url: pdf_url,
-          is_oa: is_oa,
           has_pdf: has_pdf
         };
       });
@@ -793,39 +784,44 @@
         .replace(/"/g, "&quot;");
     }
 
-    // ---------- Fetch from CORE with proxy ----------
+    // ---------- Fetch from CORE with multiple proxies ----------
     async function fetchCORE(queryParams) {
       const url = API + "?" + queryParams;
-      const proxyUrl = PROXY + encodeURIComponent(url);
       
-      console.log("Fetching URL:", proxyUrl);
-      
-      try {
-        const res = await fetch(proxyUrl, {
-          headers: {
-            'Accept': 'application/json',
+      // Try each proxy
+      for (let proxy of PROXIES) {
+        try {
+          const proxyUrl = proxy + encodeURIComponent(url);
+          console.log("Trying proxy:", proxy);
+          console.log("URL:", proxyUrl);
+          
+          const res = await fetch(proxyUrl, {
+            headers: {
+              'Accept': 'application/json',
+            }
+          });
+          
+          if (res.ok) {
+            const data = await res.json();
+            console.log("Success! Got", data.totalHits || 0, "results");
+            return data;
+          } else {
+            console.log("Proxy returned:", res.status);
           }
-        });
-        
-        if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error("HTTP " + res.status + ": " + errorText.substring(0, 200));
+        } catch (e) {
+          console.log("Proxy failed:", e.message);
         }
-        
-        const data = await res.json();
-        console.log("Success! Got", data.totalHits || 0, "results");
-        return data;
-      } catch (err) {
-        console.error("Fetch error:", err);
-        throw err;
       }
+      
+      throw new Error("All proxies failed");
     }
 
-    // ---------- Build CORE query with ISSN support ----------
+    // ---------- Build CORE query ----------
     function buildCOREQuery(topic, keyword, issn, start, limit, random) {
-      let queryParts = [];
+      // CORE uses 'q' parameter for search
+      let searchTerms = [];
       
-      // Topic search
+      // Topic mapping
       const searchFields = {
         'Biblical studies': 'biblical studies',
         'Theology': 'theology',
@@ -854,52 +850,48 @@
         'Gender studies': 'gender studies'
       };
       
-      // ISSN filter (if provided)
-      if (issn && issn.trim()) {
-        queryParts.push("issn:" + issn.trim());
-      }
-      
-      // Keyword search
-      if (keyword) {
-        queryParts.push('title:"' + keyword + '"');
-      }
-      
-      // Topic filter (unless searching all or random)
-      if (topic && !random && !lastIsAll) {
-        const searchTerm = searchFields[topic] || topic;
-        if (queryParts.length > 0) {
-          // Add topic as an additional filter
-          queryParts.push(searchTerm);
-        } else {
-          queryParts.push(searchTerm);
+      // Build search query
+      if (random) {
+        searchTerms.push("(humanities OR philosophy OR literature)");
+      } else {
+        // Add topic
+        if (topic && !lastIsAll) {
+          const term = searchFields[topic] || topic;
+          searchTerms.push("(" + term + ")");
+        }
+        
+        // Add keyword
+        if (keyword) {
+          searchTerms.push('title:"' + keyword + '"');
+        }
+        
+        // Add ISSN
+        if (issn && issn.trim()) {
+          searchTerms.push('issn:"' + issn.trim() + '"');
         }
       }
       
-      // For random, use a broad query
-      if (random) {
-        queryParts = ["humanities OR philosophy OR literature"];
+      // If no search terms, use a default
+      if (searchTerms.length === 0) {
+        searchTerms.push("humanities");
       }
       
-      // Build the query string
-      let query = queryParts.join(" AND ");
+      const q = searchTerms.join(" AND ");
       
-      // Add parameters
-      query += "&limit=" + limit;
-      query += "&offset=" + start;
+      // Build query parameters
+      let params = "q=" + encodeURIComponent(q);
+      params += "&limit=" + limit;
+      params += "&offset=" + start;
       
-      // Sort by date for newest
-      if (random) {
-        const randomOffset = Math.floor(Math.random() * 500);
-        query = query.replace(/offset=\d+/, "offset=" + randomOffset);
-      } else {
-        query += "&sort=publishedDate";
-        query += "&order=desc";
+      if (!random) {
+        params += "&sort=publishedDate";
+        params += "&order=desc";
       }
       
-      return query;
+      return params;
     }
 
-    // ---------- Load paper (only with PDF) ----------
+    // ---------- Load paper ----------
     async function loadPaper(topic, random) {
       showStatus(random ? "Loading random paper with PDF…" : "Loading newest paper with PDF…");
       if (resultsSection) resultsSection.hidden = true;
@@ -907,7 +899,8 @@
 
       try {
         const issn = issnInput ? issnInput.value.trim() : "";
-        let query = buildCOREQuery(topic, null, issn, 0, 20, random);
+        // Fetch more results to filter for PDFs
+        const query = buildCOREQuery(topic, null, issn, 0, 50, random);
         const data = await fetchCORE(query);
         let papers = parseCORE(data);
 
@@ -925,7 +918,7 @@
       }
     }
 
-    // ---------- Search (only with PDF) ----------
+    // ---------- Search ----------
     async function runSearch(start) {
       start = start || 0;
       const keyword = (keywordInput && keywordInput.value) ? keywordInput.value.trim() : "";
@@ -943,7 +936,8 @@
 
       try {
         const issn = issnInput ? issnInput.value.trim() : "";
-        let query = buildCOREQuery(lastIsAll ? null : currentTopic, keyword, issn, start, PAGE_SIZE * 3, false);
+        // Fetch more results to filter for PDFs
+        const query = buildCOREQuery(lastIsAll ? null : currentTopic, keyword, issn, start, 50, false);
         const data = await fetchCORE(query);
         let papers = parseCORE(data);
 
@@ -957,10 +951,10 @@
           return;
         }
 
-        // Limit to PAGE_SIZE
-        papers = papers.slice(0, PAGE_SIZE);
+        // Show up to PAGE_SIZE results
+        const displayPapers = papers.slice(0, PAGE_SIZE);
 
-        papers.forEach(function (p) {
+        displayPapers.forEach(function (p) {
           const div = document.createElement("div");
           div.className = "result-item";
           div.innerHTML =
@@ -973,9 +967,9 @@
           resultsBox.appendChild(div);
         });
 
-        if (resultsInfo) resultsInfo.textContent = (start + 1) + "–" + (start + papers.length);
+        if (resultsInfo) resultsInfo.textContent = (start + 1) + "–" + (start + displayPapers.length);
         if (prevBtn) prevBtn.disabled = start === 0;
-        if (nextBtn) nextBtn.disabled = papers.length < PAGE_SIZE;
+        if (nextBtn) nextBtn.disabled = papers.length <= PAGE_SIZE;
       } catch (err) {
         console.error("Search error:", err);
         resultsBox.innerHTML = '<div class="status" style="padding:1rem">Search failed: ' + err.message + '</div>';
@@ -1041,7 +1035,6 @@
         }
       } catch (err) {
         console.error("Summary error:", err);
-
         const sentences = abstract.match(/[^.!?]+[.!?]+/g) || [abstract];
         let fallback = sentences.slice(0, 4).join(" ");
         const words = fallback.trim().split(/\s+/);
