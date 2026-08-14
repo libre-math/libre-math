@@ -23,18 +23,27 @@ let lastIsAll = false;
 const PAGE_SIZE = 10;
 
 // ---------- Theme ----------
+const root = document.documentElement;
+const themeToggle = document.getElementById("theme-toggle");
+
 function applyTheme(theme) {
-  document.documentElement.setAttribute("data-theme", theme);
+  root.setAttribute("data-theme", theme);
   themeToggle.textContent = theme === "dark" ? "Light" : "Dark";
-  try { localStorage.setItem("arxiv-theme", theme); } catch {}
+  try {
+    localStorage.setItem("arxiv-theme", theme);
+  } catch (e) {}
 }
 
-const saved = (() => { try { return localStorage.getItem("arxiv-theme"); } catch { return null; } })();
-applyTheme(saved || "light");
+// Load saved preference (default to light)
+let savedTheme = "light";
+try {
+  savedTheme = localStorage.getItem("arxiv-theme") || "light";
+} catch (e) {}
+applyTheme(savedTheme);
 
 themeToggle.addEventListener("click", () => {
-  const next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
-  applyTheme(next);
+  const current = root.getAttribute("data-theme") || "light";
+  applyTheme(current === "dark" ? "light" : "dark");
 });
 
 // ---------- Helpers ----------
