@@ -242,8 +242,8 @@ async function summarizeAbstract() {
   }
   if (summarizeBtn) summarizeBtn.disabled = true;
 
-  // Ask for a longer, simpler summary
-  const prompt = "Summarize the following scientific abstract in simple everyday language, about 50 words, no jargon:\n\n" + abstract;
+  // Strong "dumb it down" instruction + longer target
+  const prompt = "Explain this scientific abstract in very simple words that a 15-year-old could easily understand. Use short sentences. Avoid all jargon and technical terms. Write about 120 to 150 words:\n\n" + abstract;
 
   const model = "sshleifer/distilbart-cnn-12-6";
   const url = "https://api-inference.huggingface.co/models/" + model;
@@ -255,8 +255,8 @@ async function summarizeAbstract() {
       body: JSON.stringify({
         inputs: prompt,
         parameters: {
-          max_length: 90,
-          min_length: 40,
+          max_length: 220,
+          min_length: 100,
           do_sample: false
         }
       })
@@ -275,10 +275,10 @@ async function summarizeAbstract() {
       throw new Error("Unexpected response");
     }
 
-    // Soft limit around 55 words
+    // Soft limit around 160 words
     const words = summary.split(/\s+/);
-    if (words.length > 55) {
-      summary = words.slice(0, 52).join(" ") + "…";
+    if (words.length > 160) {
+      summary = words.slice(0, 155).join(" ") + "…";
     }
 
     if (summaryBox) {
@@ -287,11 +287,11 @@ async function summarizeAbstract() {
   } catch (err) {
     console.error("Summary error:", err);
 
-    // Fallback: take first two sentences and keep ~50 words
+    // Fallback: first 3–4 sentences, capped around 150 words
     const sentences = abstract.match(/[^.!?]+[.!?]+/g) || [abstract];
-    let fallback = (sentences[0] || "") + " " + (sentences[1] || "");
+    let fallback = sentences.slice(0, 4).join(" ");
     const words = fallback.trim().split(/\s+/);
-    fallback = words.slice(0, 50).join(" ") + (words.length > 50 ? "…" : "");
+    fallback = words.slice(0, 150).join(" ") + (words.length > 150 ? "…" : "");
 
     if (summaryBox) {
       summaryBox.innerHTML = '<p class="summary-result">' + escapeHtml(fallback) + '</p>';
@@ -300,6 +300,7 @@ async function summarizeAbstract() {
     if (summarizeBtn) summarizeBtn.disabled = false;
   }
 }
+
 // ---------- Events ----------
 if (categorySelect) {
   categorySelect.addEventListener("change", function () {
