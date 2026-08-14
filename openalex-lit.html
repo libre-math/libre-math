@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
 
   <style>
-    /* Same CSS as before */
+    /* Same CSS as before - keeping it concise */
     :root {
       --bg: #f4efe4;
       --bg-alt: #ebe4d6;
@@ -483,18 +483,39 @@
         <div class="control-group">
           <label for="topic-select">Topic</label>
           <select id="topic-select">
-            <option value="philosophy">Philosophy</option>
-            <option value="literature">Literature</option>
-            <option value="critical theory">Critical Theory</option>
-            <option value="phenomenology">Phenomenology</option>
-            <option value="existentialism">Existentialism</option>
-            <option value="postmodernism">Postmodernism</option>
-            <option value="poetics">Poetics</option>
-            <option value="narrative theory">Narrative Theory</option>
-            <option value="aesthetics">Aesthetics</option>
-            <option value="ethics">Ethics</option>
-            <option value="ontology">Ontology</option>
-            <option value="epistemology">Epistemology</option>
+            <optgroup label="Philosophy">
+              <option value="Aesthetics">Aesthetics</option>
+              <option value="Epistemology">Epistemology</option>
+              <option value="Ethics">Ethics</option>
+              <option value="Existentialism">Existentialism</option>
+              <option value="Metaphysics">Metaphysics</option>
+              <option value="Ontology">Ontology</option>
+              <option value="Phenomenology">Phenomenology</option>
+              <option value="Philosophy of mind">Philosophy of mind</option>
+              <option value="Philosophy of science">Philosophy of science</option>
+              <option value="Political philosophy">Political philosophy</option>
+            </optgroup>
+            <optgroup label="Literature">
+              <option value="Literary criticism">Literary criticism</option>
+              <option value="Literary theory">Literary theory</option>
+              <option value="Narrative">Narrative</option>
+              <option value="Poetics">Poetics</option>
+              <option value="Postmodernism">Postmodernism</option>
+              <option value="Critical theory">Critical theory</option>
+            </optgroup>
+            <optgroup label="Religious Studies">
+              <option value="Biblical studies" selected>Biblical studies</option>
+              <option value="Theology">Theology</option>
+              <option value="Philosophy of religion">Philosophy of religion</option>
+              <option value="Religious studies">Religious studies</option>
+            </optgroup>
+            <optgroup label="Other Humanities">
+              <option value="Classics">Classics</option>
+              <option value="History">History</option>
+              <option value="Linguistics">Linguistics</option>
+              <option value="Cultural studies">Cultural studies</option>
+              <option value="Gender studies">Gender studies</option>
+            </optgroup>
           </select>
         </div>
 
@@ -565,7 +586,7 @@
 
   <script>
     // =========================================================
-    // OpenAlex Technical Report — NO PROXIES, Direct API
+    // OpenAlex Technical Report — Real topic names
     // =========================================================
 
     const topicSelect = document.getElementById("topic-select");
@@ -588,7 +609,7 @@
     let lastIsAll = false;
     const PAGE_SIZE = 10;
     let currentPapers = [];
-    let currentTopic = "philosophy";
+    let currentTopic = "Biblical studies";
 
     // ---------- Theme ----------
     function applyTheme(theme) {
@@ -733,13 +754,14 @@
       currentTopic = topic;
 
       try {
-        // Use simpler filter - just books and chapters for humanities
+        // Search for the topic in the works
         let query = "filter=type:book-chapter,type:book,type:edited-book";
         query += "&sort=publication_date:desc";
         query += "&per-page=1";
         
         if (topic && !random) {
-          query += "&search=" + encodeURIComponent(topic);
+          // Use the topic name directly in search
+          query += "&search=" + encodeURIComponent('"' + topic + '"');
         }
 
         if (random) {
@@ -824,7 +846,7 @@
       }
     }
 
-    // ---------- Summary (unchanged) ----------
+    // ---------- Summary ----------
     async function summarizeAbstract() {
       const abstractEl = document.getElementById("paper-abstract");
       const abstract = abstractEl ? abstractEl.textContent.trim() : "";
