@@ -1,5 +1,5 @@
 // =========================================================
-// arXiv Technical Report — complete clean version
+// arXiv Technical Report — fixed version
 // =========================================================
 
 const API = "https://export.arxiv.org/api/query";
@@ -17,10 +17,12 @@ const resultsInfo    = document.getElementById("results-info");
 const prevBtn        = document.getElementById("prev-btn");
 const nextBtn        = document.getElementById("next-btn");
 const themeToggle    = document.getElementById("theme-toggle");
+const nextPaperBtn   = document.getElementById("next-paper-btn");
 
 let currentStart = 0;
 let lastQuery = "";
 let lastIsAll = false;
+let newestOffset = 0;          // for "Next paper"
 const PAGE_SIZE = 10;
 
 // ---------- Theme ----------
@@ -116,13 +118,17 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
-// ---------- Newest paper ----------
-async function loadNewest(category) {
-  showStatus("Loading newest paper…");
+// ---------- Newest / Next paper ----------
+async function loadNewest(category, offset) {
+  offset = offset || 0;
+  newestOffset = offset;
+
+  showStatus(offset === 0 ? "Loading newest paper…" : "Loading next paper…");
   if (resultsSection) resultsSection.hidden = true;
 
   const query = "search_query=cat:" + encodeURIComponent(category) +
-                "&sortBy=submittedDate&sortOrder=descending&max_results=1";
+                "&sortBy=submittedDate&sortOrder=descending&start=" + offset +
+                "&max_results=1";
   const url = PROXY + encodeURIComponent(API + "?" + query);
 
   try {
@@ -132,39 +138,42 @@ async function loadNewest(category) {
     const papers = parseEntries(text);
 
     if (!papers || papers.length === 0) {
-      showStatus("No papers found in this category.");
+      showStatus(offset === 0 ? "No papers found in this category." : "No more papers.");
       return;
     }
     showPaper(papers[0]);
   } catch (err) {
     console.error("loadNewest error:", err);
-    showStatus("Could not reach arXiv (CORS or network). See console.");
+    showStatus("Could not reach arXiv. See console.");
   }
 }
 
 // ---------- Search ----------
 async function runSearch(start) {
   start = start || 0;
-  const keyword = keywordInput.value.trim();
-  if (!keyword) return;
+  const keyword = (keywordInput && keywordInput.value) ? keywordInput.value.trim() : "";
+  if (!keyword) {
+    alert("Please type a keyword first.");
+    return;
+  }
 
   currentStart = start;
   lastQuery = keyword;
 
   if (resultsSection) resultsSection.hidden = false;
   resultsBox.innerHTML = '<div class="status" style="padding:1rem">Searching…</div>';
-  resultsInfo.textContent = "";
-  prevBtn.disabled = true;
-  nextBtn.disabled = true;
+  if (resultsInfo) resultsInfo.textContent = "";
+  if (prevBtn) prevBtn.disabled = true;
+  if (nextBtn) nextBtn.disabled = true;
 
   let searchQuery;
   if (lastIsAll) {
     const cats = Array.from(categorySelect.options).map(function (o) { return o.value; });
     const catPart = cats.map(function (c) { return "cat:" + c; }).join(" OR ");
-    searchQuery = "(" + catPart + ") AND (ti:\"" + keyword + "\" OR abs:\"" + keyword + "\")";
+    searchQuery = "(" + catPart + ") AND (all:" + keyword + ")";
   } else {
     const cat = categorySelect.value;
-    searchQuery = "cat:" + cat + " AND (ti:\"" + keyword + "\" OR abs:\"" + keyword + "\")";
+    searchQuery = "cat:" + cat + " AND all:" + keyword;
   }
 
   const query = "search_query=" + encodeURIComponent(searchQuery) +
@@ -197,19 +206,20 @@ async function runSearch(start) {
       resultsBox.appendChild(div);
     });
 
-    resultsInfo.textContent = (start + 1) + "–" + (start + papers.length);
-    prevBtn.disabled = start === 0;
-    nextBtn.disabled = papers.length < PAGE_SIZE;
+    if (resultsInfo) resultsInfo.textContent = (start + 1) + "–" + (start + papers.length);
+    if (prevBtn) prevBtn.disabled = start === 0;
+    if (nextBtn) nextBtn.disabled = papers.length < PAGE_SIZE;
   } catch (err) {
     console.error("search error:", err);
-    resultsBox.innerHTML = '<div class="status" style="padding:1rem">Search failed.</div>';
+    resultsBox.innerHTML = '<div class="status" style="padding:1rem">Search failed. See console.</div>';
   }
 }
 
 // ---------- Events ----------
 if (categorySelect) {
   categorySelect.addEventListener("change", function () {
-    loadNewest(categorySelect.value);
+    newestOffset = 0;
+    loadNewest(categorySelect.value, 0);
   });
 }
 
@@ -250,12 +260,14 @@ if (nextBtn) {
   });
 }
 
-// ---------- Start ----------
-if (categorySelect) {
-  loadNewest(categorySelect.value);
+// Next paper button
+if (nextPaperBtn) {
+  nextPaperBtn.addEventListener("click", function () {
+    loadNewest(categorySelect.value, newestOffset + 1);
+  });
 }
 
 // ---------- Start ----------
 if (categorySelect) {
-  loadNewest(categorySelect.value);
+  loadNewest(categorySelect.value, 0);
 }
