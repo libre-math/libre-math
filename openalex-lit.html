@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
 
   <style>
-    /* Same CSS as before - keeping it concise */
+    /* Same CSS as before */
     :root {
       --bg: #f4efe4;
       --bg-alt: #ebe4d6;
@@ -565,7 +565,7 @@
 
   <script>
     // =========================================================
-    // OpenAlex Technical Report — FIXED API calls
+    // OpenAlex Technical Report — NO PROXIES, Direct API
     // =========================================================
 
     const topicSelect = document.getElementById("topic-select");
@@ -699,50 +699,31 @@
         .replace(/"/g, "&quot;");
     }
 
-    // ---------- Fetch with multiple CORS proxies ----------
+    // ---------- Direct fetch (OpenAlex supports CORS!) ----------
     async function fetchOpenAlex(queryParams) {
       const baseUrl = "https://api.openalex.org/works";
       const url = baseUrl + "?" + queryParams;
       
       console.log("Fetching URL:", url);
       
-      // Try multiple CORS proxies
-      const proxyUrls = [
-        "https://corsproxy.io/?" + encodeURIComponent(url),
-        "https://api.allorigins.win/raw?url=" + encodeURIComponent(url),
-        // Direct attempt (some browsers might allow it)
-        url
-      ];
-
-      let lastError = null;
-
-      for (let proxyUrl of proxyUrls) {
-        try {
-          console.log("Trying proxy:", proxyUrl);
-          const res = await fetch(proxyUrl, {
-            headers: {
-              'Accept': 'application/json',
-              'User-Agent': 'Mozilla/5.0 (compatible; LibreLit/1.0)'
-            }
-          });
-          
-          if (res.ok) {
-            const data = await res.json();
-            console.log("Success! Got data:", data);
-            return data;
-          } else {
-            console.log("Proxy returned status:", res.status);
-            const text = await res.text();
-            console.log("Response text:", text.substring(0, 200));
-            lastError = new Error("HTTP " + res.status + ": " + text.substring(0, 100));
+      try {
+        const res = await fetch(url, {
+          headers: {
+            'Accept': 'application/json',
           }
-        } catch (e) {
-          console.log("Proxy failed:", e.message);
-          lastError = e;
+        });
+        
+        if (!res.ok) {
+          throw new Error("HTTP " + res.status + ": " + await res.text());
         }
+        
+        const data = await res.json();
+        console.log("Success! Got data:", data);
+        return data;
+      } catch (err) {
+        console.error("Fetch error:", err);
+        throw err;
       }
-
-      throw lastError || new Error("All proxies failed");
     }
 
     // ---------- Load paper (newest or random) ----------
@@ -752,22 +733,20 @@
       currentTopic = topic;
 
       try {
-        // FIXED: Use correct OpenAlex filter format
-        // Instead of comma-separated types, use multiple filter=type:xxx parameters
-        const typeFilter = "filter=type:book-chapter,type:book,type:edited-book,type:reference-entry,type:review,type:report,type:peer-review";
-        
-        let query = typeFilter;
+        // Use simpler filter - just books and chapters for humanities
+        let query = "filter=type:book-chapter,type:book,type:edited-book";
         query += "&sort=publication_date:desc";
+        query += "&per-page=1";
         
-        if (topic) {
+        if (topic && !random) {
           query += "&search=" + encodeURIComponent(topic);
         }
 
         if (random) {
-          const randomPage = Math.floor(Math.random() * 50) + 1;
-          query += "&page=" + randomPage + "&per-page=1";
+          const randomPage = Math.floor(Math.random() * 30) + 1;
+          query += "&page=" + randomPage;
         } else {
-          query += "&page=1&per-page=1";
+          query += "&page=1";
         }
 
         console.log("Final query:", query);
@@ -775,13 +754,13 @@
         const papers = parseOpenAlex(data);
 
         if (!papers || papers.length === 0) {
-          showStatus("No papers found for: " + topic + ". Try a different topic or use the search.");
+          showStatus("No papers found for: " + topic + ". Try a different topic.");
           return;
         }
         showPaper(papers[0]);
       } catch (err) {
         console.error("Load error:", err);
-        showStatus("Error loading papers. Please try again. Details: " + err.message);
+        showStatus("Error loading papers. Please try again. " + err.message);
       }
     }
 
@@ -802,8 +781,7 @@
       if (nextBtn) nextBtn.disabled = true;
 
       try {
-        const typeFilter = "filter=type:book-chapter,type:book,type:edited-book,type:reference-entry,type:review,type:report,type:peer-review";
-        let query = typeFilter;
+        let query = "filter=type:book-chapter,type:book,type:edited-book";
         
         if (keyword) {
           query += "&search=" + encodeURIComponent('"' + keyword + '"');
@@ -846,7 +824,7 @@
       }
     }
 
-    // ---------- Summary ----------
+    // ---------- Summary (unchanged) ----------
     async function summarizeAbstract() {
       const abstractEl = document.getElementById("paper-abstract");
       const abstract = abstractEl ? abstractEl.textContent.trim() : "";
