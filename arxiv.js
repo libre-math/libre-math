@@ -1,5 +1,5 @@
 // =========================================================
-// arXiv Technical Report — fixed version
+// arXiv Technical Report — updated
 // =========================================================
 
 const API = "https://export.arxiv.org/api/query";
@@ -17,12 +17,10 @@ const resultsInfo    = document.getElementById("results-info");
 const prevBtn        = document.getElementById("prev-btn");
 const nextBtn        = document.getElementById("next-btn");
 const themeToggle    = document.getElementById("theme-toggle");
-const nextPaperBtn   = document.getElementById("next-paper-btn");
+const randomPaperBtn = document.getElementById("random-paper-btn");
 
 let currentStart = 0;
-let lastQuery = "";
 let lastIsAll = false;
-let newestOffset = 0;          // for "Next paper"
 const PAGE_SIZE = 10;
 
 // ---------- Theme ----------
@@ -31,16 +29,12 @@ function applyTheme(theme) {
   if (themeToggle) {
     themeToggle.textContent = theme === "dark" ? "Light" : "Dark";
   }
-  try {
-    localStorage.setItem("arxiv-theme", theme);
-  } catch (e) {}
+  try { localStorage.setItem("arxiv-theme", theme); } catch (e) {}
 }
 
 (function initTheme() {
   let saved = "light";
-  try {
-    saved = localStorage.getItem("arxiv-theme") || "light";
-  } catch (e) {}
+  try { saved = localStorage.getItem("arxiv-theme") || "light"; } catch (e) {}
   applyTheme(saved);
 })();
 
@@ -80,33 +74,17 @@ function showPaper(paper) {
 function parseEntries(xmlText) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(xmlText, "application/xml");
+  if (doc.querySelector("parsererror")) return [];
 
-  if (doc.querySelector("parsererror")) {
-    console.error("XML parse error");
-    return [];
-  }
-
-  const entries = Array.from(doc.querySelectorAll("entry"));
-  return entries.map(function (entry) {
+  return Array.from(doc.querySelectorAll("entry")).map(function (entry) {
     const idUrl = (entry.querySelector("id") && entry.querySelector("id").textContent) || "";
     const arxivId = idUrl.split("/abs/").pop() || idUrl;
-    const title = ((entry.querySelector("title") && entry.querySelector("title").textContent) || "")
-      .replace(/\s+/g, " ").trim();
-    const summary = ((entry.querySelector("summary") && entry.querySelector("summary").textContent) || "")
-      .replace(/\s+/g, " ").trim();
+    const title = ((entry.querySelector("title") && entry.querySelector("title").textContent) || "").replace(/\s+/g, " ").trim();
+    const summary = ((entry.querySelector("summary") && entry.querySelector("summary").textContent) || "").replace(/\s+/g, " ").trim();
     const published = ((entry.querySelector("published") && entry.querySelector("published").textContent) || "").slice(0, 10);
-    const authorNodes = entry.querySelectorAll("author name");
-    const authors = Array.from(authorNodes).map(function (n) { return n.textContent.trim(); }).join(", ");
-    const catNodes = entry.querySelectorAll("category");
-    const cats = Array.from(catNodes).map(function (c) { return c.getAttribute("term"); }).filter(Boolean).join(", ");
-    return {
-      arxivId: arxivId,
-      title: title,
-      summary: summary,
-      published: published,
-      authors: authors,
-      cats: cats
-    };
+    const authors = Array.from(entry.querySelectorAll("author name")).map(n => n.textContent.trim()).join(", ");
+    const cats = Array.from(entry.querySelectorAll("category")).map(c => c.getAttribute("term")).filter(Boolean).join(", ");
+    return { arxivId, title, summary, published, authors, cats };
   });
 }
 
@@ -118,16 +96,26 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
-// ---------- Newest / Next paper ----------
-async function loadNewest(category, offset) {
-  offset = offset || 0;
-  newestOffset = offset;
-
-  showStatus(offset === 0 ? "Loading newest paper…" : "Loading next paper…");
+// ---------- Load paper (newest or random) ----------
+async function loadPaper(category, random) {
+  showStatus(random ? "Loading random paper…" : "Loading newest paper…");
   if (resultsSection) resultsSection.hidden = true;
 
-  const query = "search_query=cat:" + encodeURIComponent(category) +
-                "&sortBy=submittedDate&sortOrder=descending&start=" + offset +
+  // For quantitative finance the broad "q-fin" sometimes returns empty.
+  // We fall back to a few concrete sub-categories.
+  let catQuery = "cat:" + category;
+  if (category === "q-fin") {
+    catQuery = "(cat:q-fin.CP OR cat:q-fin.MF OR cat:q-fin.PM OR cat:q-fin.PR OR cat:q-fin.RM OR cat:q-fin.ST OR cat:q-fin.TR OR cat:q-fin.GN)";
+  }
+
+  let start = 0;
+  if (random) {
+    // Pick a random offset in the first ~200 papers
+    start = Math.floor(Math.random() * 200);
+  }
+
+  const query = "search_query=" + encodeURIComponent(catQuery) +
+                "&sortBy=submittedDate&sortOrder=descending&start=" + start +
                 "&max_results=1";
   const url = PROXY + encodeURIComponent(API + "?" + query);
 
@@ -138,17 +126,17 @@ async function loadNewest(category, offset) {
     const papers = parseEntries(text);
 
     if (!papers || papers.length === 0) {
-      showStatus(offset === 0 ? "No papers found in this category." : "No more papers.");
+      showStatus("No papers found in this category.");
       return;
     }
     showPaper(papers[0]);
   } catch (err) {
-    console.error("loadNewest error:", err);
+    console.error(err);
     showStatus("Could not reach arXiv. See console.");
   }
 }
 
-// ---------- Search ----------
+// ---------- Search (title only) ----------
 async function runSearch(start) {
   start = start || 0;
   const keyword = (keywordInput && keywordInput.value) ? keywordInput.value.trim() : "";
@@ -158,8 +146,6 @@ async function runSearch(start) {
   }
 
   currentStart = start;
-  lastQuery = keyword;
-
   if (resultsSection) resultsSection.hidden = false;
   resultsBox.innerHTML = '<div class="status" style="padding:1rem">Searching…</div>';
   if (resultsInfo) resultsInfo.textContent = "";
@@ -168,12 +154,17 @@ async function runSearch(start) {
 
   let searchQuery;
   if (lastIsAll) {
-    const cats = Array.from(categorySelect.options).map(function (o) { return o.value; });
-    const catPart = cats.map(function (c) { return "cat:" + c; }).join(" OR ");
-    searchQuery = "(" + catPart + ") AND (all:" + keyword + ")";
+    const cats = Array.from(categorySelect.options).map(o => o.value);
+    const catPart = cats.map(c => "cat:" + c).join(" OR ");
+    searchQuery = "(" + catPart + ") AND ti:\"" + keyword + "\"";
   } else {
-    const cat = categorySelect.value;
-    searchQuery = "cat:" + cat + " AND all:" + keyword;
+    let cat = categorySelect.value;
+    if (cat === "q-fin") {
+      cat = "(cat:q-fin.CP OR cat:q-fin.MF OR cat:q-fin.PM OR cat:q-fin.PR OR cat:q-fin.RM OR cat:q-fin.ST OR cat:q-fin.TR OR cat:q-fin.GN)";
+      searchQuery = cat + " AND ti:\"" + keyword + "\"";
+    } else {
+      searchQuery = "cat:" + cat + " AND ti:\"" + keyword + "\"";
+    }
   }
 
   const query = "search_query=" + encodeURIComponent(searchQuery) +
@@ -210,16 +201,15 @@ async function runSearch(start) {
     if (prevBtn) prevBtn.disabled = start === 0;
     if (nextBtn) nextBtn.disabled = papers.length < PAGE_SIZE;
   } catch (err) {
-    console.error("search error:", err);
-    resultsBox.innerHTML = '<div class="status" style="padding:1rem">Search failed. See console.</div>';
+    console.error(err);
+    resultsBox.innerHTML = '<div class="status" style="padding:1rem">Search failed.</div>';
   }
 }
 
 // ---------- Events ----------
 if (categorySelect) {
   categorySelect.addEventListener("change", function () {
-    newestOffset = 0;
-    loadNewest(categorySelect.value, 0);
+    loadPaper(categorySelect.value, false);
   });
 }
 
@@ -248,9 +238,7 @@ if (keywordInput) {
 
 if (prevBtn) {
   prevBtn.addEventListener("click", function () {
-    if (currentStart >= PAGE_SIZE) {
-      runSearch(currentStart - PAGE_SIZE);
-    }
+    if (currentStart >= PAGE_SIZE) runSearch(currentStart - PAGE_SIZE);
   });
 }
 
@@ -260,14 +248,13 @@ if (nextBtn) {
   });
 }
 
-// Next paper button
-if (nextPaperBtn) {
-  nextPaperBtn.addEventListener("click", function () {
-    loadNewest(categorySelect.value, newestOffset + 1);
+if (randomPaperBtn) {
+  randomPaperBtn.addEventListener("click", function () {
+    loadPaper(categorySelect.value, true);
   });
 }
 
 // ---------- Start ----------
 if (categorySelect) {
-  loadNewest(categorySelect.value, 0);
+  loadPaper(categorySelect.value, false);
 }
