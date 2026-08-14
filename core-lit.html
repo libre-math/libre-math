@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Explore philosophy and literature papers from OpenAlex — technical report style.">
-  <title>OpenAlex Papers | Libre Lit</title>
+  <meta name="description" content="Explore philosophy and literature papers from CORE — technical report style.">
+  <title>CORE Papers | Libre Lit</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -432,6 +432,21 @@
       font-size: 0.82rem;
     }
 
+    .oa-badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      padding: 0.15rem 0.6rem;
+      background: #1a5c5c;
+      color: white;
+      font-family: "IBM Plex Mono", monospace;
+      letter-spacing: 0.05em;
+      border-radius: 0;
+    }
+
+    .oa-badge.closed {
+      background: #5c4a1a;
+    }
+
     @media (max-width: 720px) {
       .paper-layout {
         grid-template-columns: 1fr;
@@ -470,7 +485,7 @@
     <header class="report-header">
       <div class="report-header-left">
         <div class="report-agency">LIBRE LIT · TECHNICAL MEMORANDUM</div>
-        <h1 class="report-title">OpenAlex Papers — Literature &amp; Philosophy</h1>
+        <h1 class="report-title">CORE Papers — Literature &amp; Philosophy</h1>
       </div>
       <div class="report-header-right">
         <button id="theme-toggle" class="btn" aria-label="Toggle theme">Dark</button>
@@ -541,14 +556,15 @@
               <span id="paper-date" class="mono"></span>
               <span id="paper-cats" class="mono"></span>
               <span id="paper-type" class="mono"></span>
+              <span id="paper-oa" class="mono"></span>
             </div>
             <h2 id="paper-title" class="paper-title"></h2>
             <p id="paper-authors" class="paper-authors mono"></p>
             <hr class="rule">
             <div id="paper-abstract" class="paper-abstract"></div>
             <div class="paper-actions">
-              <a id="paper-abs-link" class="btn" target="_blank" rel="noopener">OpenAlex page</a>
-              <a id="paper-pdf-link" class="btn" target="_blank" rel="noopener">PDF</a>
+              <a id="paper-abs-link" class="btn" target="_blank" rel="noopener">View on CORE</a>
+              <a id="paper-pdf-link" class="btn" target="_blank" rel="noopener">Download PDF</a>
               <button id="random-paper-btn" class="btn">Random paper</button>
             </div>
           </div>
@@ -580,43 +596,17 @@
     </main>
 
     <footer class="report-footer">
-      Data from OpenAlex API · Libre Lit
+      Data from CORE API · Libre Lit
     </footer>
   </div>
 
   <script>
     // =========================================================
-    // OpenAlex Technical Report — Topic ID filtering
+    // CORE Technical Report — Full text papers
     // =========================================================
 
-    // Topic configuration with OpenAlex IDs
-    const TOPICS = {
-        'Biblical studies': { id: 'T10362', name: 'Biblical studies' },
-        'Theology': { id: 'T10520', name: 'Theology' },
-        'Philosophy of religion': { id: 'T10728', name: 'Philosophy of religion' },
-        'Religious studies': { id: 'T10361', name: 'Religious studies' },
-        'Aesthetics': { id: 'T10409', name: 'Aesthetics' },
-        'Epistemology': { id: 'T10720', name: 'Epistemology' },
-        'Ethics': { id: 'T10415', name: 'Ethics' },
-        'Existentialism': { id: 'T10426', name: 'Existentialism' },
-        'Metaphysics': { id: 'T10750', name: 'Metaphysics' },
-        'Ontology': { id: 'T10416', name: 'Ontology' },
-        'Phenomenology': { id: 'T10397', name: 'Phenomenology' },
-        'Philosophy of mind': { id: 'T10427', name: 'Philosophy of mind' },
-        'Philosophy of science': { id: 'T10430', name: 'Philosophy of science' },
-        'Political philosophy': { id: 'T10840', name: 'Political philosophy' },
-        'Literary criticism': { id: 'T10359', name: 'Literary criticism' },
-        'Literary theory': { id: 'T10360', name: 'Literary theory' },
-        'Narrative': { id: 'T10420', name: 'Narrative' },
-        'Poetics': { id: 'T10421', name: 'Poetics' },
-        'Postmodernism': { id: 'T10422', name: 'Postmodernism' },
-        'Critical theory': { id: 'T10423', name: 'Critical theory' },
-        'Classics': { id: 'T10363', name: 'Classics' },
-        'History': { id: 'T10056', name: 'History' },
-        'Linguistics': { id: 'T10463', name: 'Linguistics' },
-        'Cultural studies': { id: 'T10424', name: 'Cultural studies' },
-        'Gender studies': { id: 'T10425', name: 'Gender studies' },
-    };
+    const API = "https://api.core.ac.uk/v3/search/works";
+    const PROXY = "https://corsproxy.io/?";
 
     const topicSelect = document.getElementById("topic-select");
     const keywordInput = document.getElementById("keyword-input");
@@ -638,8 +628,7 @@
     let lastIsAll = false;
     const PAGE_SIZE = 10;
     let currentPapers = [];
-    let currentTopicName = "Biblical studies";
-    let currentTopicId = "T10362";
+    let currentTopic = "Biblical studies";
 
     // ---------- Theme ----------
     function applyTheme(theme) {
@@ -648,14 +637,14 @@
         themeToggle.textContent = theme === "dark" ? "Light" : "Dark";
       }
       try {
-        localStorage.setItem("openalex-theme", theme);
+        localStorage.setItem("core-theme", theme);
       } catch (e) {}
     }
 
     (function initTheme() {
       let saved = "light";
       try {
-        saved = localStorage.getItem("openalex-theme") || "light";
+        saved = localStorage.getItem("core-theme") || "light";
       } catch (e) {}
       applyTheme(saved);
     })();
@@ -684,21 +673,32 @@
       document.getElementById("paper-date").textContent = paper.published || "";
       document.getElementById("paper-cats").textContent = paper.topics || "";
       document.getElementById("paper-type").textContent = paper.type || "";
+      
+      // Show OA status
+      const oaEl = document.getElementById("paper-oa");
+      if (paper.is_oa) {
+        oaEl.innerHTML = '<span class="oa-badge">Open Access</span>';
+      } else {
+        oaEl.innerHTML = '<span class="oa-badge closed">Closed Access</span>';
+      }
+      
       document.getElementById("paper-title").textContent = paper.title || "";
       document.getElementById("paper-authors").textContent = paper.authors || "";
       document.getElementById("paper-abstract").textContent = paper.abstract || "";
 
       const absLink = document.getElementById("paper-abs-link");
       const pdfLink = document.getElementById("paper-pdf-link");
-      if (absLink) absLink.href = paper.openalex_url || "#";
+      
+      if (absLink) absLink.href = paper.core_url || "#";
+      
       if (pdfLink) {
-        pdfLink.href = paper.pdf_url || paper.openalex_url || "#";
-        if (!paper.pdf_url) {
-          pdfLink.style.opacity = "0.5";
-          pdfLink.textContent = "No PDF";
-        } else {
+        if (paper.pdf_url) {
+          pdfLink.href = paper.pdf_url;
+          pdfLink.textContent = "Download PDF";
+          pdfLink.style.display = "inline-block";
           pdfLink.style.opacity = "1";
-          pdfLink.textContent = "PDF";
+        } else {
+          pdfLink.style.display = "none";
         }
       }
 
@@ -707,27 +707,33 @@
       }
     }
 
-    function parseOpenAlex(data) {
+    function parseCORE(data) {
       if (!data || !data.results) return [];
       return data.results.map(function (work) {
-        const id = work.id ? work.id.split("/").pop() : "";
+        const id = work.id || "";
         const title = work.title || "Untitled";
         const abstract = work.abstract || "No abstract available.";
-        const published = work.publication_date ? work.publication_date.slice(0, 10) : "";
-        const authors = (work.authorships || [])
-          .map(function (a) {
-            return a.author && a.author.display_name ? a.author.display_name : "";
-          })
+        const published = work.year ? String(work.year) : "";
+        const authors = (work.authors || [])
+          .map(function (a) { return a.name; })
           .filter(Boolean)
           .join(", ") || "Unknown author";
-        const topics = (work.topics || [])
-          .map(function (t) { return t.display_name; })
+        
+        // Get topics from subjects
+        const topics = (work.subjects || [])
           .filter(Boolean)
           .slice(0, 3)
           .join(", ");
+        
         const type = work.type || "";
-        const openalex_url = work.id || "#";
-        const pdf_url = (work.open_access && work.open_access.oa_url) || null;
+        const core_url = work.source_fulltext_urls && work.source_fulltext_urls.length > 0 
+          ? work.source_fulltext_urls[0] 
+          : work.downloadUrl || "#";
+        
+        // Check if PDF is available
+        const pdf_url = work.downloadUrl || null;
+        const is_oa = work._openAccess || false;
+        
         return {
           id: id,
           title: title,
@@ -736,8 +742,9 @@
           authors: authors,
           topics: topics,
           type: type,
-          openalex_url: openalex_url,
-          pdf_url: pdf_url
+          core_url: core_url,
+          pdf_url: pdf_url,
+          is_oa: is_oa
         };
       });
     }
@@ -750,15 +757,15 @@
         .replace(/"/g, "&quot;");
     }
 
-    // ---------- Direct fetch (OpenAlex supports CORS!) ----------
-    async function fetchOpenAlex(queryParams) {
-      const baseUrl = "https://api.openalex.org/works";
-      const url = baseUrl + "?" + queryParams;
+    // ---------- Fetch from CORE with proxy ----------
+    async function fetchCORE(queryParams) {
+      const url = API + "?" + queryParams;
+      const proxyUrl = PROXY + encodeURIComponent(url);
       
-      console.log("Fetching URL:", url);
+      console.log("Fetching URL:", proxyUrl);
       
       try {
-        const res = await fetch(url, {
+        const res = await fetch(proxyUrl, {
           headers: {
             'Accept': 'application/json',
           }
@@ -770,7 +777,7 @@
         }
         
         const data = await res.json();
-        console.log("Success! Got", data.meta.count, "results");
+        console.log("Success! Got", data.totalHits || 0, "results");
         return data;
       } catch (err) {
         console.error("Fetch error:", err);
@@ -778,41 +785,84 @@
       }
     }
 
-    // ---------- Load paper using Topic ID ----------
-    async function loadPaper(topicName, random) {
+    // ---------- Build CORE query ----------
+    function buildCOREQuery(topic, keyword, start, limit, random) {
+      let query = "";
+      
+      // CORE uses different field names
+      const searchFields = {
+        'Biblical studies': 'biblical',
+        'Theology': 'theology',
+        'Philosophy of religion': 'philosophy religion',
+        'Religious studies': 'religious studies',
+        'Aesthetics': 'aesthetics',
+        'Epistemology': 'epistemology',
+        'Ethics': 'ethics',
+        'Existentialism': 'existentialism',
+        'Metaphysics': 'metaphysics',
+        'Ontology': 'ontology',
+        'Phenomenology': 'phenomenology',
+        'Philosophy of mind': 'philosophy mind',
+        'Philosophy of science': 'philosophy science',
+        'Political philosophy': 'political philosophy',
+        'Literary criticism': 'literary criticism',
+        'Literary theory': 'literary theory',
+        'Narrative': 'narrative',
+        'Poetics': 'poetics',
+        'Postmodernism': 'postmodernism',
+        'Critical theory': 'critical theory',
+        'Classics': 'classics',
+        'History': 'history',
+        'Linguistics': 'linguistics',
+        'Cultural studies': 'cultural studies',
+        'Gender studies': 'gender studies'
+      };
+      
+      if (keyword) {
+        query += "title:" + encodeURIComponent('"' + keyword + '"');
+      }
+      
+      if (topic && !random && !lastIsAll) {
+        const searchTerm = searchFields[topic] || topic;
+        if (query) query += " AND ";
+        query += "(" + searchTerm + ")";
+      }
+      
+      // For random, use a broad query
+      if (random) {
+        query = "humanities OR philosophy OR literature";
+      }
+      
+      // Add limit and offset
+      query += "&limit=" + limit;
+      query += "&offset=" + start;
+      
+      // Sort by date for newest, or random
+      if (random) {
+        // CORE doesn't support random sorting, so we'll use a random offset
+        const randomOffset = Math.floor(Math.random() * 500);
+        query = query.replace(/offset=\d+/, "offset=" + randomOffset);
+      } else {
+        query += "&sort=publishedDate";
+        query += "&order=desc";
+      }
+      
+      return query;
+    }
+
+    // ---------- Load paper ----------
+    async function loadPaper(topic, random) {
       showStatus(random ? "Loading random paper…" : "Loading newest paper…");
       if (resultsSection) resultsSection.hidden = true;
-      currentTopicName = topicName;
-      
-      const topic = TOPICS[topicName];
-      if (!topic) {
-        showStatus("Topic not found: " + topicName);
-        return;
-      }
-      currentTopicId = topic.id;
+      currentTopic = topic;
 
       try {
-        let query = "filter=type:book-chapter,type:book,type:edited-book";
-        
-        // Use topic ID for precise filtering
-        query += ",topics.id:" + topic.id;
-        query += "&sort=publication_date:desc";
-        query += "&per-page=1";
-        
-        if (random) {
-          // Get random by using a random page
-          const randomPage = Math.floor(Math.random() * 50) + 1;
-          query += "&page=" + randomPage;
-        } else {
-          query += "&page=1";
-        }
-
-        console.log("Final query:", query);
-        const data = await fetchOpenAlex(query);
-        const papers = parseOpenAlex(data);
+        const query = buildCOREQuery(topic, null, 0, 1, random);
+        const data = await fetchCORE(query);
+        const papers = parseCORE(data);
 
         if (!papers || papers.length === 0) {
-          showStatus("No papers found for: " + topicName + ". Try a different topic.");
+          showStatus("No papers found for: " + topic + ". Try a different topic.");
           return;
         }
         showPaper(papers[0]);
@@ -822,7 +872,7 @@
       }
     }
 
-    // ---------- Search within topic ----------
+    // ---------- Search ----------
     async function runSearch(start) {
       start = start || 0;
       const keyword = (keywordInput && keywordInput.value) ? keywordInput.value.trim() : "";
@@ -839,24 +889,9 @@
       if (nextBtn) nextBtn.disabled = true;
 
       try {
-        let query = "filter=type:book-chapter,type:book,type:edited-book";
-        
-        if (lastIsAll) {
-          // Search all: just keyword search across all topics
-          query += "&search=" + encodeURIComponent('"' + keyword + '"');
-        } else {
-          // Search within current topic: use topic ID + keyword
-          query += ",topics.id:" + currentTopicId;
-          query += "&search=" + encodeURIComponent('"' + keyword + '"');
-        }
-        
-        query += "&sort=relevance_score:desc";
-        query += "&page=" + (Math.floor(start / PAGE_SIZE) + 1);
-        query += "&per-page=" + PAGE_SIZE;
-
-        console.log("Search query:", query);
-        const data = await fetchOpenAlex(query);
-        const papers = parseOpenAlex(data);
+        const query = buildCOREQuery(lastIsAll ? null : currentTopic, keyword, start, PAGE_SIZE, false);
+        const data = await fetchCORE(query);
+        const papers = parseCORE(data);
         currentPapers = papers;
 
         resultsBox.innerHTML = "";
@@ -963,8 +998,8 @@
     // ---------- Events ----------
     if (topicSelect) {
       topicSelect.addEventListener("change", function () {
-        currentTopicName = topicSelect.value;
-        loadPaper(currentTopicName, false);
+        currentTopic = topicSelect.value;
+        loadPaper(currentTopic, false);
       });
     }
 
@@ -1007,7 +1042,7 @@
 
     if (randomPaperBtn) {
       randomPaperBtn.addEventListener("click", function () {
-        loadPaper(currentTopicName, true);
+        loadPaper(currentTopic, true);
       });
     }
 
@@ -1017,8 +1052,8 @@
 
     // ---------- Start ----------
     if (topicSelect) {
-      currentTopicName = topicSelect.value;
-      loadPaper(currentTopicName, false);
+      currentTopic = topicSelect.value;
+      loadPaper(currentTopic, false);
     }
   </script>
 </body>
