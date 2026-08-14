@@ -1,41 +1,111 @@
+/* =========================================================
+   Libre Math — design tokens
+   A quiet "lecture notes" aesthetic: paper background, a
+   graph-paper texture behind lessons, serif headings paired
+   with a plain sans body face, and a single chalk-green accent.
+   ========================================================= */
+
 :root {
-  --bg-color: #f8fafc;        /* very light slate */
-  --text-color: #1e293b;      /* dark slate */
-  --header-bg: #0f172a;       /* near-black blue */
-  --nav-bg: #ffffff;
-  --link-color: #2563eb;      /* muted blue */
-  --border-color: #e2e8f0;
+  /* Color */
+  --color-bg: #f7f7f2;
+  --color-surface: #ffffff;
+  --color-text: #1c1b1a;
+  --color-text-muted: #5b5952;
+  --color-header-bg: #142a3d;
+  --color-header-text: #f3f4ee;
+  --color-accent: #2f6f4f;
+  --color-accent-soft: rgba(47, 111, 79, 0.08);
+  --color-border: #e2e0d5;
+  --color-link: #2f6f4f;
+
+  /* Type */
+  --font-display: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-body: "Inter", system-ui, sans-serif;
+
+  /* Scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 40px;
+  --radius: 8px;
 }
 
 body.dark {
-  --bg-color: #020617;
-  --text-color: #e5e7eb;
-  --header-bg: #020617;
-  --nav-bg: #020617;
-  --link-color: #60a5fa;
-  --border-color: #1e293b;
+  --color-bg: #10140f;
+  --color-surface: #161b14;
+  --color-text: #e8e6de;
+  --color-text-muted: #a9a79c;
+  --color-header-bg: #0b0f0c;
+  --color-header-text: #eceae1;
+  --color-accent: #7fb69a;
+  --color-accent-soft: rgba(127, 182, 154, 0.12);
+  --color-border: #262f22;
+  --color-link: #7fb69a;
+}
+
+/* =========================================================
+   Base
+   ========================================================= */
+
+* {
+  box-sizing: border-box;
 }
 
 body {
-  background-color: var(--bg-color);
-  color: var(--text-color);
   margin: 0;
-  font-family: "Inter", sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  line-height: 1.6;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Layout */
-.container {
-  display: flex;
-  min-height: 80vh;
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--color-text);
+  line-height: 1.25;
 }
+
+a {
+  color: var(--color-link);
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--color-accent);
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 0 0 6px 0;
+  z-index: 10;
+}
+
+.skip-link:focus {
+  left: 0;
+}
+
+/* Visible, consistent focus state everywhere */
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* =========================================================
+   Header
+   ========================================================= */
 
 header {
-  background-color: var(--header-bg);
-  color: white;
-  padding: 12px 24px;          /* less vertical height */
+  background-color: var(--color-header-bg);
+  color: var(--color-header-text);
+  padding: 18px 28px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .header-title {
@@ -46,84 +116,247 @@ header {
 header h1 {
   margin: 0;
   font-size: 1.6rem;
+  color: var(--color-header-text);
+  letter-spacing: 0.01em;
 }
 
 header p {
-  margin: 2px 0 0;
-  font-size: 0.9rem;
-  opacity: 0.85;
+  margin: 4px 0 0;
+  font-size: 0.92rem;
+  opacity: 0.75;
+  font-family: var(--font-body);
+}
+
+#theme-toggle {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: inherit;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+#theme-toggle:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.55);
+}
+
+/* =========================================================
+   Layout
+   ========================================================= */
+
+.container {
+  display: flex;
+  align-items: flex-start;
+  min-height: 80vh;
 }
 
 nav {
-  width: 220px;
-  background-color: var(--nav-bg);
-  border-right: 1px solid var(--border-color);
-  padding: 20px;
-}
-nav h2 {
-  font-size: 1.1rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #6b7280;
+  width: 230px;
+  flex-shrink: 0;
+  background-color: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  padding: 28px 20px;
+  position: sticky;
+  top: 0;
 }
 
-nav ul li a {
+nav h2 {
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  margin: 0 0 12px;
+}
+
+nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+nav ul li + li {
+  margin-top: 2px;
+}
+
+nav ul li a,
+nav ul li strong {
   display: block;
-  padding: 8px 10px;
+  padding: 8px 12px;
   border-radius: 6px;
-  color: var(--link-color);
+  color: var(--color-link);
+  font-size: 0.95rem;
+  text-decoration: none;
 }
 
 nav ul li a:hover {
-  background-color: rgba(37, 99, 235, 0.08);
-  text-decoration: none;
+  background-color: var(--color-accent-soft);
 }
+
+nav ul li strong {
+  background-color: var(--color-accent-soft);
+  color: var(--color-text);
+  font-weight: 600;
+}
+
 main {
   flex: 1;
-  padding: 40px 20px;
+  padding: 48px 40px 72px;
+  max-width: 780px;
+  /* Signature: faint graph-paper grid, evoking a notebook page */
+  background-image:
+    linear-gradient(var(--color-border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-border) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-position: -1px -1px;
+  background-color: var(--color-bg);
+}
+
+body.dark main {
+  background-image:
+    linear-gradient(rgba(127, 182, 154, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(127, 182, 154, 0.08) 1px, transparent 1px);
+}
+
+main > h2:first-child {
+  margin-top: 0;
+}
+
+main h2 {
+  font-size: 1.5rem;
+  margin-top: var(--space-5);
+  padding-bottom: var(--space-2);
+  border-bottom: 2px solid var(--color-border);
+}
+
+main h3 {
+  font-size: 1.15rem;
+  margin-top: var(--space-4);
+}
+
+main p {
+  color: var(--color-text);
 }
 
 main li {
   text-align: justify;
 }
 
+/* =========================================================
+   Derivatives table
+   ========================================================= */
+
 .derivatives-table {
-  width: 80%;
-  margin: 30px auto;
+  width: 100%;
+  max-width: 420px;
+  margin: var(--space-4) auto;
   border-collapse: collapse;
   font-size: 0.95rem;
+  background-color: var(--color-surface);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .derivatives-table th,
 .derivatives-table td {
-  padding: 10px 14px;
+  padding: 10px 18px;
   text-align: center;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .derivatives-table thead th {
+  font-family: var(--font-body);
   font-weight: 600;
-  border-bottom: 2px solid var(--border-color);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  border-bottom: 2px solid var(--color-accent);
 }
+
+.derivatives-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.derivatives-table tbody tr:hover {
+  background-color: var(--color-accent-soft);
+}
+
+/* =========================================================
+   Example cards
+   ========================================================= */
+
+.example {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-accent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 18px 22px;
+  margin: var(--space-3) 0 var(--space-4);
+}
+
+.example .eyebrow {
+  display: block;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-accent);
+  margin-bottom: 4px;
+}
+
+.example h3 {
+  margin: 0 0 10px;
+  font-size: 1.05rem;
+}
+
+.example p:last-child {
+  margin-bottom: 0;
+}
+
+/* =========================================================
+   Footer
+   ========================================================= */
 
 footer {
   text-align: center;
-  padding: 20px;
-  background-color: var(--nav-bg);
-  border-top: 1px solid var(--border-color);
-}
-
-/* Button */
-#theme-toggle {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  color: white;
-  padding: 4px 8px;
+  padding: 22px;
   font-size: 0.85rem;
-  border-radius: 6px;
-  cursor: pointer;
+  color: var(--color-text-muted);
+  background-color: var(--color-surface);
+  border-top: 1px solid var(--color-border);
 }
 
-#theme-toggle:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+/* =========================================================
+   Responsive
+   ========================================================= */
+
+@media (max-width: 720px) {
+  .container {
+    flex-direction: column;
+  }
+
+  nav {
+    width: 100%;
+    position: static;
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  main {
+    padding: 32px 20px 56px;
+  }
+}
+
+/* Respect reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
 }
