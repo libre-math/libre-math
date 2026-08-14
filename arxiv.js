@@ -242,6 +242,9 @@ async function summarizeAbstract() {
   }
   if (summarizeBtn) summarizeBtn.disabled = true;
 
+  // Ask for a longer, simpler summary
+  const prompt = "Summarize the following scientific abstract in simple everyday language, about 50 words, no jargon:\n\n" + abstract;
+
   const model = "sshleifer/distilbart-cnn-12-6";
   const url = "https://api-inference.huggingface.co/models/" + model;
 
@@ -250,10 +253,10 @@ async function summarizeAbstract() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        inputs: abstract,
+        inputs: prompt,
         parameters: {
-          max_length: 42,
-          min_length: 12,
+          max_length: 90,
+          min_length: 40,
           do_sample: false
         }
       })
@@ -272,10 +275,10 @@ async function summarizeAbstract() {
       throw new Error("Unexpected response");
     }
 
-    // Keep it short
+    // Soft limit around 55 words
     const words = summary.split(/\s+/);
-    if (words.length > 18) {
-      summary = words.slice(0, 15).join(" ") + "…";
+    if (words.length > 55) {
+      summary = words.slice(0, 52).join(" ") + "…";
     }
 
     if (summaryBox) {
@@ -283,18 +286,20 @@ async function summarizeAbstract() {
     }
   } catch (err) {
     console.error("Summary error:", err);
-    // Fallback: first sentence, shortened
-    const first = abstract.split(/[.!?]/)[0] || abstract;
-    const words = first.split(/\s+/);
-    const short = words.slice(0, 14).join(" ") + (words.length > 14 ? "…" : "");
+
+    // Fallback: take first two sentences and keep ~50 words
+    const sentences = abstract.match(/[^.!?]+[.!?]+/g) || [abstract];
+    let fallback = (sentences[0] || "") + " " + (sentences[1] || "");
+    const words = fallback.trim().split(/\s+/);
+    fallback = words.slice(0, 50).join(" ") + (words.length > 50 ? "…" : "");
+
     if (summaryBox) {
-      summaryBox.innerHTML = '<p class="summary-result">' + escapeHtml(short) + '</p>';
+      summaryBox.innerHTML = '<p class="summary-result">' + escapeHtml(fallback) + '</p>';
     }
   } finally {
     if (summarizeBtn) summarizeBtn.disabled = false;
   }
 }
-
 // ---------- Events ----------
 if (categorySelect) {
   categorySelect.addEventListener("change", function () {
