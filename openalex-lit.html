@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
 
   <style>
-    /* Same CSS as before - keeping it concise */
+    /* Same CSS as before */
     :root {
       --bg: #f4efe4;
       --bg-alt: #ebe4d6;
@@ -483,6 +483,12 @@
         <div class="control-group">
           <label for="topic-select">Topic</label>
           <select id="topic-select">
+            <optgroup label="Religious Studies">
+              <option value="Biblical studies" selected>Biblical studies</option>
+              <option value="Theology">Theology</option>
+              <option value="Philosophy of religion">Philosophy of religion</option>
+              <option value="Religious studies">Religious studies</option>
+            </optgroup>
             <optgroup label="Philosophy">
               <option value="Aesthetics">Aesthetics</option>
               <option value="Epistemology">Epistemology</option>
@@ -502,12 +508,6 @@
               <option value="Poetics">Poetics</option>
               <option value="Postmodernism">Postmodernism</option>
               <option value="Critical theory">Critical theory</option>
-            </optgroup>
-            <optgroup label="Religious Studies">
-              <option value="Biblical studies" selected>Biblical studies</option>
-              <option value="Theology">Theology</option>
-              <option value="Philosophy of religion">Philosophy of religion</option>
-              <option value="Religious studies">Religious studies</option>
             </optgroup>
             <optgroup label="Other Humanities">
               <option value="Classics">Classics</option>
@@ -586,8 +586,37 @@
 
   <script>
     // =========================================================
-    // OpenAlex Technical Report — Real topic names
+    // OpenAlex Technical Report — Topic ID filtering
     // =========================================================
+
+    // Topic configuration with OpenAlex IDs
+    const TOPICS = {
+        'Biblical studies': { id: 'T10362', name: 'Biblical studies' },
+        'Theology': { id: 'T10520', name: 'Theology' },
+        'Philosophy of religion': { id: 'T10728', name: 'Philosophy of religion' },
+        'Religious studies': { id: 'T10361', name: 'Religious studies' },
+        'Aesthetics': { id: 'T10409', name: 'Aesthetics' },
+        'Epistemology': { id: 'T10720', name: 'Epistemology' },
+        'Ethics': { id: 'T10415', name: 'Ethics' },
+        'Existentialism': { id: 'T10426', name: 'Existentialism' },
+        'Metaphysics': { id: 'T10750', name: 'Metaphysics' },
+        'Ontology': { id: 'T10416', name: 'Ontology' },
+        'Phenomenology': { id: 'T10397', name: 'Phenomenology' },
+        'Philosophy of mind': { id: 'T10427', name: 'Philosophy of mind' },
+        'Philosophy of science': { id: 'T10430', name: 'Philosophy of science' },
+        'Political philosophy': { id: 'T10840', name: 'Political philosophy' },
+        'Literary criticism': { id: 'T10359', name: 'Literary criticism' },
+        'Literary theory': { id: 'T10360', name: 'Literary theory' },
+        'Narrative': { id: 'T10420', name: 'Narrative' },
+        'Poetics': { id: 'T10421', name: 'Poetics' },
+        'Postmodernism': { id: 'T10422', name: 'Postmodernism' },
+        'Critical theory': { id: 'T10423', name: 'Critical theory' },
+        'Classics': { id: 'T10363', name: 'Classics' },
+        'History': { id: 'T10056', name: 'History' },
+        'Linguistics': { id: 'T10463', name: 'Linguistics' },
+        'Cultural studies': { id: 'T10424', name: 'Cultural studies' },
+        'Gender studies': { id: 'T10425', name: 'Gender studies' },
+    };
 
     const topicSelect = document.getElementById("topic-select");
     const keywordInput = document.getElementById("keyword-input");
@@ -609,7 +638,8 @@
     let lastIsAll = false;
     const PAGE_SIZE = 10;
     let currentPapers = [];
-    let currentTopic = "Biblical studies";
+    let currentTopicName = "Biblical studies";
+    let currentTopicId = "T10362";
 
     // ---------- Theme ----------
     function applyTheme(theme) {
@@ -735,11 +765,12 @@
         });
         
         if (!res.ok) {
-          throw new Error("HTTP " + res.status + ": " + await res.text());
+          const errorText = await res.text();
+          throw new Error("HTTP " + res.status + ": " + errorText.substring(0, 200));
         }
         
         const data = await res.json();
-        console.log("Success! Got data:", data);
+        console.log("Success! Got", data.meta.count, "results");
         return data;
       } catch (err) {
         console.error("Fetch error:", err);
@@ -747,25 +778,30 @@
       }
     }
 
-    // ---------- Load paper (newest or random) ----------
-    async function loadPaper(topic, random) {
+    // ---------- Load paper using Topic ID ----------
+    async function loadPaper(topicName, random) {
       showStatus(random ? "Loading random paper…" : "Loading newest paper…");
       if (resultsSection) resultsSection.hidden = true;
-      currentTopic = topic;
+      currentTopicName = topicName;
+      
+      const topic = TOPICS[topicName];
+      if (!topic) {
+        showStatus("Topic not found: " + topicName);
+        return;
+      }
+      currentTopicId = topic.id;
 
       try {
-        // Search for the topic in the works
         let query = "filter=type:book-chapter,type:book,type:edited-book";
+        
+        // Use topic ID for precise filtering
+        query += ",topics.id:" + topic.id;
         query += "&sort=publication_date:desc";
         query += "&per-page=1";
         
-        if (topic && !random) {
-          // Use the topic name directly in search
-          query += "&search=" + encodeURIComponent('"' + topic + '"');
-        }
-
         if (random) {
-          const randomPage = Math.floor(Math.random() * 30) + 1;
+          // Get random by using a random page
+          const randomPage = Math.floor(Math.random() * 50) + 1;
           query += "&page=" + randomPage;
         } else {
           query += "&page=1";
@@ -776,17 +812,17 @@
         const papers = parseOpenAlex(data);
 
         if (!papers || papers.length === 0) {
-          showStatus("No papers found for: " + topic + ". Try a different topic.");
+          showStatus("No papers found for: " + topicName + ". Try a different topic.");
           return;
         }
         showPaper(papers[0]);
       } catch (err) {
         console.error("Load error:", err);
-        showStatus("Error loading papers. Please try again. " + err.message);
+        showStatus("Error loading papers: " + err.message);
       }
     }
 
-    // ---------- Search ----------
+    // ---------- Search within topic ----------
     async function runSearch(start) {
       start = start || 0;
       const keyword = (keywordInput && keywordInput.value) ? keywordInput.value.trim() : "";
@@ -805,7 +841,12 @@
       try {
         let query = "filter=type:book-chapter,type:book,type:edited-book";
         
-        if (keyword) {
+        if (lastIsAll) {
+          // Search all: just keyword search across all topics
+          query += "&search=" + encodeURIComponent('"' + keyword + '"');
+        } else {
+          // Search within current topic: use topic ID + keyword
+          query += ",topics.id:" + currentTopicId;
           query += "&search=" + encodeURIComponent('"' + keyword + '"');
         }
         
@@ -922,63 +963,11 @@
     // ---------- Events ----------
     if (topicSelect) {
       topicSelect.addEventListener("change", function () {
-        currentTopic = topicSelect.value;
-        loadPaper(currentTopic, false);
+        currentTopicName = topicSelect.value;
+        loadPaper(currentTopicName, false);
       });
     }
 
     if (searchBtn) {
       searchBtn.addEventListener("click", function () {
-        lastIsAll = false;
-        runSearch(0);
-      });
-    }
-
-    if (searchAllBtn) {
-      searchAllBtn.addEventListener("click", function () {
-        lastIsAll = true;
-        runSearch(0);
-      });
-    }
-
-    if (keywordInput) {
-      keywordInput.addEventListener("keydown", function (e) {
-        if (e.key === "Enter") {
-          lastIsAll = false;
-          runSearch(0);
-        }
-      });
-    }
-
-    if (prevBtn) {
-      prevBtn.addEventListener("click", function () {
-        if (currentStart >= PAGE_SIZE) {
-          runSearch(currentStart - PAGE_SIZE);
-        }
-      });
-    }
-
-    if (nextBtn) {
-      nextBtn.addEventListener("click", function () {
-        runSearch(currentStart + PAGE_SIZE);
-      });
-    }
-
-    if (randomPaperBtn) {
-      randomPaperBtn.addEventListener("click", function () {
-        loadPaper(currentTopic, true);
-      });
-    }
-
-    if (summarizeBtn) {
-      summarizeBtn.addEventListener("click", summarizeAbstract);
-    }
-
-    // ---------- Start ----------
-    if (topicSelect) {
-      currentTopic = topicSelect.value;
-      loadPaper(currentTopic, false);
-    }
-  </script>
-</body>
-</html>
+        lastIsAll = false
