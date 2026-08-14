@@ -11,13 +11,8 @@
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
 
   <style>
-    /* =========================================================
-       OpenAlex Technical Report — Literature & Philosophy
-       Light (cream paper) + Dark (warm night)
-       ========================================================= */
-
+    /* Same CSS as before - keeping it concise */
     :root {
-      /* Light */
       --bg: #f4efe4;
       --bg-alt: #ebe4d6;
       --bg-paper: #f9f5eb;
@@ -88,7 +83,6 @@
     }
     .skip-link:focus { left: 0; }
 
-    /* ---------- Report container ---------- */
     .report {
       max-width: 880px;
       margin: 0 auto;
@@ -105,7 +99,6 @@
       box-shadow: 0 0 60px rgba(0,0,0,0.45);
     }
 
-    /* ---------- Header ---------- */
     .report-header {
       background: var(--header-bg);
       border-bottom: 3px double var(--border);
@@ -152,7 +145,6 @@
       align-items: center;
     }
 
-    /* ---------- Body ---------- */
     .report-body {
       flex: 1;
       padding: 1.9rem 1.7rem 3.2rem;
@@ -164,7 +156,6 @@
       margin: 1.6rem 0;
     }
 
-    /* ---------- Controls ---------- */
     .controls {
       display: flex;
       flex-wrap: wrap;
@@ -216,7 +207,6 @@
       flex: 1;
     }
 
-    /* ---------- Buttons ---------- */
     .btn {
       font-family: "IBM Plex Mono", monospace;
       font-size: 0.78rem;
@@ -258,7 +248,6 @@
       transform: none;
     }
 
-    /* ---------- Paper view ---------- */
     .status {
       font-family: "IBM Plex Mono", monospace;
       color: var(--text-muted);
@@ -311,7 +300,6 @@
       margin-top: 0.5rem;
     }
 
-    /* ---------- Results ---------- */
     .results-section {
       margin-top: 2.2rem;
     }
@@ -373,7 +361,6 @@
       color: var(--text-muted);
     }
 
-    /* ---------- Footer ---------- */
     .report-footer {
       border-top: 1px solid var(--border);
       padding: 1.05rem 1.6rem;
@@ -385,7 +372,6 @@
       background: var(--header-bg);
     }
 
-    /* ---------- Side-by-side paper + summary ---------- */
     .paper-layout {
       display: grid;
       grid-template-columns: 1fr 280px;
@@ -446,7 +432,6 @@
       font-size: 0.82rem;
     }
 
-    /* Mobile: stack */
     @media (max-width: 720px) {
       .paper-layout {
         grid-template-columns: 1fr;
@@ -482,7 +467,6 @@
   <a class="skip-link" href="#main-content">Skip to content</a>
 
   <div class="report">
-    <!-- Report header -->
     <header class="report-header">
       <div class="report-header-left">
         <div class="report-agency">LIBRE LIT · TECHNICAL MEMORANDUM</div>
@@ -495,8 +479,6 @@
     </header>
 
     <main id="main-content" class="report-body">
-
-      <!-- Controls -->
       <section class="controls">
         <div class="control-group">
           <label for="topic-select">Topic</label>
@@ -528,12 +510,10 @@
 
       <hr class="rule">
 
-      <!-- Main paper view -->
       <section id="paper-view" class="paper-view">
         <div id="paper-status" class="status">Loading newest paper…</div>
 
         <div id="paper-content" class="paper-layout" hidden>
-          <!-- LEFT: the paper -->
           <div class="paper-main">
             <div class="paper-meta">
               <span id="paper-id" class="mono"></span>
@@ -552,7 +532,6 @@
             </div>
           </div>
 
-          <!-- RIGHT: short summary -->
           <aside class="summary-panel">
             <div class="summary-header">
               <span class="summary-label">Quick take</span>
@@ -565,7 +544,6 @@
         </div>
       </section>
 
-      <!-- Search results -->
       <section id="results-section" class="results-section" hidden>
         <div class="results-header">
           <h3>Search results</h3>
@@ -587,7 +565,7 @@
 
   <script>
     // =========================================================
-    // OpenAlex Technical Report — Fixed API calls
+    // OpenAlex Technical Report — FIXED API calls
     // =========================================================
 
     const topicSelect = document.getElementById("topic-select");
@@ -721,35 +699,50 @@
         .replace(/"/g, "&quot;");
     }
 
-    // ---------- Direct fetch with CORS proxy ----------
+    // ---------- Fetch with multiple CORS proxies ----------
     async function fetchOpenAlex(queryParams) {
       const baseUrl = "https://api.openalex.org/works";
       const url = baseUrl + "?" + queryParams;
       
+      console.log("Fetching URL:", url);
+      
       // Try multiple CORS proxies
-      const proxies = [
+      const proxyUrls = [
         "https://corsproxy.io/?" + encodeURIComponent(url),
         "https://api.allorigins.win/raw?url=" + encodeURIComponent(url),
-        url // direct (might work in some browsers)
+        // Direct attempt (some browsers might allow it)
+        url
       ];
 
-      for (let proxyUrl of proxies) {
+      let lastError = null;
+
+      for (let proxyUrl of proxyUrls) {
         try {
-          console.log("Trying:", proxyUrl);
+          console.log("Trying proxy:", proxyUrl);
           const res = await fetch(proxyUrl, {
             headers: {
               'Accept': 'application/json',
+              'User-Agent': 'Mozilla/5.0 (compatible; LibreLit/1.0)'
             }
           });
+          
           if (res.ok) {
             const data = await res.json();
+            console.log("Success! Got data:", data);
             return data;
+          } else {
+            console.log("Proxy returned status:", res.status);
+            const text = await res.text();
+            console.log("Response text:", text.substring(0, 200));
+            lastError = new Error("HTTP " + res.status + ": " + text.substring(0, 100));
           }
         } catch (e) {
-          console.log("Proxy failed, trying next...");
+          console.log("Proxy failed:", e.message);
+          lastError = e;
         }
       }
-      throw new Error("All proxies failed");
+
+      throw lastError || new Error("All proxies failed");
     }
 
     // ---------- Load paper (newest or random) ----------
@@ -759,7 +752,11 @@
       currentTopic = topic;
 
       try {
-        let query = "filter=type:book-chapter,book,edited-book,reference-entry,review,report,peer-review";
+        // FIXED: Use correct OpenAlex filter format
+        // Instead of comma-separated types, use multiple filter=type:xxx parameters
+        const typeFilter = "filter=type:book-chapter,type:book,type:edited-book,type:reference-entry,type:review,type:report,type:peer-review";
+        
+        let query = typeFilter;
         query += "&sort=publication_date:desc";
         
         if (topic) {
@@ -767,29 +764,28 @@
         }
 
         if (random) {
-          // Get random by using a random page
           const randomPage = Math.floor(Math.random() * 50) + 1;
           query += "&page=" + randomPage + "&per-page=1";
         } else {
           query += "&page=1&per-page=1";
         }
 
-        console.log("Query:", query);
+        console.log("Final query:", query);
         const data = await fetchOpenAlex(query);
         const papers = parseOpenAlex(data);
 
         if (!papers || papers.length === 0) {
-          showStatus("No papers found for: " + topic);
+          showStatus("No papers found for: " + topic + ". Try a different topic or use the search.");
           return;
         }
         showPaper(papers[0]);
       } catch (err) {
         console.error("Load error:", err);
-        showStatus("Error loading papers. Check console for details.");
+        showStatus("Error loading papers. Please try again. Details: " + err.message);
       }
     }
 
-    // ---------- Search (title only) ----------
+    // ---------- Search ----------
     async function runSearch(start) {
       start = start || 0;
       const keyword = (keywordInput && keywordInput.value) ? keywordInput.value.trim() : "";
@@ -806,16 +802,16 @@
       if (nextBtn) nextBtn.disabled = true;
 
       try {
-        let query = "filter=type:book-chapter,book,edited-book,reference-entry,review,report,peer-review";
-        query += "&search=" + encodeURIComponent('"' + keyword + '"');
+        const typeFilter = "filter=type:book-chapter,type:book,type:edited-book,type:reference-entry,type:review,type:report,type:peer-review";
+        let query = typeFilter;
+        
+        if (keyword) {
+          query += "&search=" + encodeURIComponent('"' + keyword + '"');
+        }
+        
         query += "&sort=relevance_score:desc";
         query += "&page=" + (Math.floor(start / PAGE_SIZE) + 1);
         query += "&per-page=" + PAGE_SIZE;
-
-        if (!lastIsAll && currentTopic) {
-          // Add topic filter
-          query += "&filter=default.search:" + encodeURIComponent(currentTopic);
-        }
 
         console.log("Search query:", query);
         const data = await fetchOpenAlex(query);
@@ -846,11 +842,11 @@
         if (nextBtn) nextBtn.disabled = papers.length < PAGE_SIZE;
       } catch (err) {
         console.error("Search error:", err);
-        resultsBox.innerHTML = '<div class="status" style="padding:1rem">Search failed. Please try again.</div>';
+        resultsBox.innerHTML = '<div class="status" style="padding:1rem">Search failed: ' + err.message + '</div>';
       }
     }
 
-    // ---------- Hugging Face free summary ----------
+    // ---------- Summary ----------
     async function summarizeAbstract() {
       const abstractEl = document.getElementById("paper-abstract");
       const abstract = abstractEl ? abstractEl.textContent.trim() : "";
