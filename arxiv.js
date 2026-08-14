@@ -1,5 +1,5 @@
 // =========================================================
-// arXiv Technical Report — updated
+// arXiv Technical Report — complete version
 // =========================================================
 
 const API = "https://export.arxiv.org/api/query";
@@ -18,6 +18,8 @@ const prevBtn        = document.getElementById("prev-btn");
 const nextBtn        = document.getElementById("next-btn");
 const themeToggle    = document.getElementById("theme-toggle");
 const randomPaperBtn = document.getElementById("random-paper-btn");
+const summarizeBtn   = document.getElementById("summarize-btn");
+const summaryBox     = document.getElementById("summary-box");
 
 let currentStart = 0;
 let lastIsAll = false;
@@ -29,12 +31,16 @@ function applyTheme(theme) {
   if (themeToggle) {
     themeToggle.textContent = theme === "dark" ? "Light" : "Dark";
   }
-  try { localStorage.setItem("arxiv-theme", theme); } catch (e) {}
+  try {
+    localStorage.setItem("arxiv-theme", theme);
+  } catch (e) {}
 }
 
 (function initTheme() {
   let saved = "light";
-  try { saved = localStorage.getItem("arxiv-theme") || "light"; } catch (e) {}
+  try {
+    saved = localStorage.getItem("arxiv-theme") || "light";
+  } catch (e) {}
   applyTheme(saved);
 })();
 
@@ -69,6 +75,11 @@ function showPaper(paper) {
   const pdfLink = document.getElementById("paper-pdf-link");
   if (absLink) absLink.href = "https://arxiv.org/abs/" + paper.arxivId;
   if (pdfLink) pdfLink.href = "https://arxiv.org/pdf/" + paper.arxivId + ".pdf";
+
+  // Reset summary panel
+  if (summaryBox) {
+    summaryBox.innerHTML = '<p class="summary-placeholder">Click “Sum up” for a short, plain-English version of the abstract.</p>';
+  }
 }
 
 function parseEntries(xmlText) {
@@ -79,12 +90,23 @@ function parseEntries(xmlText) {
   return Array.from(doc.querySelectorAll("entry")).map(function (entry) {
     const idUrl = (entry.querySelector("id") && entry.querySelector("id").textContent) || "";
     const arxivId = idUrl.split("/abs/").pop() || idUrl;
-    const title = ((entry.querySelector("title") && entry.querySelector("title").textContent) || "").replace(/\s+/g, " ").trim();
-    const summary = ((entry.querySelector("summary") && entry.querySelector("summary").textContent) || "").replace(/\s+/g, " ").trim();
+    const title = ((entry.querySelector("title") && entry.querySelector("title").textContent) || "")
+      .replace(/\s+/g, " ").trim();
+    const summary = ((entry.querySelector("summary") && entry.querySelector("summary").textContent) || "")
+      .replace(/\s+/g, " ").trim();
     const published = ((entry.querySelector("published") && entry.querySelector("published").textContent) || "").slice(0, 10);
-    const authors = Array.from(entry.querySelectorAll("author name")).map(n => n.textContent.trim()).join(", ");
-    const cats = Array.from(entry.querySelectorAll("category")).map(c => c.getAttribute("term")).filter(Boolean).join(", ");
-    return { arxivId, title, summary, published, authors, cats };
+    const authors = Array.from(entry.querySelectorAll("author name"))
+      .map(function (n) { return n.textContent.trim(); }).join(", ");
+    const cats = Array.from(entry.querySelectorAll("category"))
+      .map(function (c) { return c.getAttribute("term"); }).filter(Boolean).join(", ");
+    return {
+      arxivId: arxivId,
+      title: title,
+      summary: summary,
+      published: published,
+      authors: authors,
+      cats: cats
+    };
   });
 }
 
@@ -101,8 +123,7 @@ async function loadPaper(category, random) {
   showStatus(random ? "Loading random paper…" : "Loading newest paper…");
   if (resultsSection) resultsSection.hidden = true;
 
-  // For quantitative finance the broad "q-fin" sometimes returns empty.
-  // We fall back to a few concrete sub-categories.
+  // Broader query for quantitative finance
   let catQuery = "cat:" + category;
   if (category === "q-fin") {
     catQuery = "(cat:q-fin.CP OR cat:q-fin.MF OR cat:q-fin.PM OR cat:q-fin.PR OR cat:q-fin.RM OR cat:q-fin.ST OR cat:q-fin.TR OR cat:q-fin.GN)";
@@ -110,7 +131,6 @@ async function loadPaper(category, random) {
 
   let start = 0;
   if (random) {
-    // Pick a random offset in the first ~200 papers
     start = Math.floor(Math.random() * 200);
   }
 
@@ -154,14 +174,13 @@ async function runSearch(start) {
 
   let searchQuery;
   if (lastIsAll) {
-    const cats = Array.from(categorySelect.options).map(o => o.value);
-    const catPart = cats.map(c => "cat:" + c).join(" OR ");
+    const cats = Array.from(categorySelect.options).map(function (o) { return o.value; });
+    const catPart = cats.map(function (c) { return "cat:" + c; }).join(" OR ");
     searchQuery = "(" + catPart + ") AND ti:\"" + keyword + "\"";
   } else {
     let cat = categorySelect.value;
     if (cat === "q-fin") {
-      cat = "(cat:q-fin.CP OR cat:q-fin.MF OR cat:q-fin.PM OR cat:q-fin.PR OR cat:q-fin.RM OR cat:q-fin.ST OR cat:q-fin.TR OR cat:q-fin.GN)";
-      searchQuery = cat + " AND ti:\"" + keyword + "\"";
+      searchQuery = "(cat:q-fin.CP OR cat:q-fin.MF OR cat:q-fin.PM OR cat:q-fin.PR OR cat:q-fin.RM OR cat:q-fin.ST OR cat:q-fin.TR OR cat:q-fin.GN) AND ti:\"" + keyword + "\"";
     } else {
       searchQuery = "cat:" + cat + " AND ti:\"" + keyword + "\"";
     }
@@ -206,6 +225,76 @@ async function runSearch(start) {
   }
 }
 
+// ---------- Hugging Face free summary (no key) ----------
+async function summarizeAbstract() {
+  const abstractEl = document.getElementById("paper-abstract");
+  const abstract = abstractEl ? abstractEl.textContent.trim() : "";
+
+  if (!abstract) {
+    if (summaryBox) {
+      summaryBox.innerHTML = '<p class="summary-placeholder">No abstract to summarize.</p>';
+    }
+    return;
+  }
+
+  if (summaryBox) {
+    summaryBox.innerHTML = '<p class="summary-loading">Summarizing…</p>';
+  }
+  if (summarizeBtn) summarizeBtn.disabled = true;
+
+  const model = "sshleifer/distilbart-cnn-12-6";
+  const url = "https://api-inference.huggingface.co/models/" + model;
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        inputs: abstract,
+        parameters: {
+          max_length: 42,
+          min_length: 12,
+          do_sample: false
+        }
+      })
+    });
+
+    if (!res.ok) throw new Error("HF status " + res.status);
+
+    const data = await res.json();
+    let summary = "";
+
+    if (Array.isArray(data) && data[0] && data[0].summary_text) {
+      summary = data[0].summary_text;
+    } else if (data.summary_text) {
+      summary = data.summary_text;
+    } else {
+      throw new Error("Unexpected response");
+    }
+
+    // Keep it short
+    const words = summary.split(/\s+/);
+    if (words.length > 18) {
+      summary = words.slice(0, 15).join(" ") + "…";
+    }
+
+    if (summaryBox) {
+      summaryBox.innerHTML = '<p class="summary-result">' + escapeHtml(summary) + '</p>';
+    }
+  } catch (err) {
+    console.error("Summary error:", err);
+    // Fallback: first sentence, shortened
+    const first = abstract.split(/[.!?]/)[0] || abstract;
+    const words = first.split(/\s+/);
+    const short = words.slice(0, 14).join(" ") + (words.length > 14 ? "…" : "");
+    if (summaryBox) {
+      summaryBox.innerHTML = '<p class="summary-result">' + escapeHtml(short) + '</p>';
+    }
+  } finally {
+    if (summarizeBtn) summarizeBtn.disabled = false;
+  }
+}
+
 // ---------- Events ----------
 if (categorySelect) {
   categorySelect.addEventListener("change", function () {
@@ -238,7 +327,9 @@ if (keywordInput) {
 
 if (prevBtn) {
   prevBtn.addEventListener("click", function () {
-    if (currentStart >= PAGE_SIZE) runSearch(currentStart - PAGE_SIZE);
+    if (currentStart >= PAGE_SIZE) {
+      runSearch(currentStart - PAGE_SIZE);
+    }
   });
 }
 
@@ -252,6 +343,10 @@ if (randomPaperBtn) {
   randomPaperBtn.addEventListener("click", function () {
     loadPaper(categorySelect.value, true);
   });
+}
+
+if (summarizeBtn) {
+  summarizeBtn.addEventListener("click", summarizeAbstract);
 }
 
 // ---------- Start ----------
