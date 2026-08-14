@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Explore philosophy and literature papers from CORE — technical report style.">
+  <meta name="description" content="Explore philosophy and literature papers from CORE — only those with PDFs available.">
   <title>CORE Papers | Libre Lit</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
 
   <style>
-    /* Same CSS as before */
+    /* Same CSS as before with minor additions */
     :root {
       --bg: #f4efe4;
       --bg-alt: #ebe4d6;
@@ -361,6 +361,18 @@
       color: var(--text-muted);
     }
 
+    .result-item .pdf-badge {
+      display: inline-block;
+      font-size: 0.6rem;
+      padding: 0.1rem 0.5rem;
+      background: var(--accent);
+      color: white;
+      font-family: "IBM Plex Mono", monospace;
+      letter-spacing: 0.05em;
+      margin-left: 0.5rem;
+      border-radius: 0;
+    }
+
     .report-footer {
       border-top: 1px solid var(--border);
       padding: 1.05rem 1.6rem;
@@ -443,8 +455,26 @@
       border-radius: 0;
     }
 
-    .oa-badge.closed {
+    .pdf-available {
+      display: inline-block;
+      font-size: 0.7rem;
+      padding: 0.15rem 0.6rem;
+      background: #1a5c5c;
+      color: white;
+      font-family: "IBM Plex Mono", monospace;
+      letter-spacing: 0.05em;
+      border-radius: 0;
+    }
+
+    .no-pdf {
+      display: inline-block;
+      font-size: 0.7rem;
+      padding: 0.15rem 0.6rem;
       background: #5c4a1a;
+      color: white;
+      font-family: "IBM Plex Mono", monospace;
+      letter-spacing: 0.05em;
+      border-radius: 0;
     }
 
     @media (max-width: 720px) {
@@ -534,6 +564,11 @@
           </select>
         </div>
 
+        <div class="control-group">
+          <label for="issn-input">Journal ISSN (optional)</label>
+          <input type="text" id="issn-input" placeholder="e.g. 2167-8359" autocomplete="off" style="font-family: 'IBM Plex Mono', monospace; font-size: 0.88rem; padding: 0.55rem 0.75rem; background: var(--bg-alt); color: var(--text); border: 1px solid var(--border); min-width: 200px; border-radius: 0;">
+        </div>
+
         <div class="control-group search-group">
           <label for="keyword-input">Keyword search (title only)</label>
           <div class="search-row">
@@ -547,7 +582,7 @@
       <hr class="rule">
 
       <section id="paper-view" class="paper-view">
-        <div id="paper-status" class="status">Loading newest paper…</div>
+        <div id="paper-status" class="status">Loading newest paper with PDF…</div>
 
         <div id="paper-content" class="paper-layout" hidden>
           <div class="paper-main">
@@ -596,19 +631,20 @@
     </main>
 
     <footer class="report-footer">
-      Data from CORE API · Libre Lit
+      Data from CORE API · Only papers with downloadable PDFs shown · Libre Lit
     </footer>
   </div>
 
   <script>
     // =========================================================
-    // CORE Technical Report — Full text papers
+    // CORE Technical Report — PDF-only filtering
     // =========================================================
 
     const API = "https://api.core.ac.uk/v3/search/works";
     const PROXY = "https://corsproxy.io/?";
 
     const topicSelect = document.getElementById("topic-select");
+    const issnInput = document.getElementById("issn-input");
     const keywordInput = document.getElementById("keyword-input");
     const searchBtn = document.getElementById("search-btn");
     const searchAllBtn = document.getElementById("search-all-btn");
@@ -674,12 +710,11 @@
       document.getElementById("paper-cats").textContent = paper.topics || "";
       document.getElementById("paper-type").textContent = paper.type || "";
       
-      // Show OA status
       const oaEl = document.getElementById("paper-oa");
       if (paper.is_oa) {
-        oaEl.innerHTML = '<span class="oa-badge">Open Access</span>';
+        oaEl.innerHTML = '<span class="pdf-available">✓ PDF Available</span>';
       } else {
-        oaEl.innerHTML = '<span class="oa-badge closed">Closed Access</span>';
+        oaEl.innerHTML = '<span class="no-pdf">No PDF</span>';
       }
       
       document.getElementById("paper-title").textContent = paper.title || "";
@@ -719,7 +754,6 @@
           .filter(Boolean)
           .join(", ") || "Unknown author";
         
-        // Get topics from subjects
         const topics = (work.subjects || [])
           .filter(Boolean)
           .slice(0, 3)
@@ -733,6 +767,7 @@
         // Check if PDF is available
         const pdf_url = work.downloadUrl || null;
         const is_oa = work._openAccess || false;
+        const has_pdf = pdf_url !== null;
         
         return {
           id: id,
@@ -744,7 +779,8 @@
           type: type,
           core_url: core_url,
           pdf_url: pdf_url,
-          is_oa: is_oa
+          is_oa: is_oa,
+          has_pdf: has_pdf
         };
       });
     }
@@ -785,13 +821,13 @@
       }
     }
 
-    // ---------- Build CORE query ----------
-    function buildCOREQuery(topic, keyword, start, limit, random) {
-      let query = "";
+    // ---------- Build CORE query with ISSN support ----------
+    function buildCOREQuery(topic, keyword, issn, start, limit, random) {
+      let queryParts = [];
       
-      // CORE uses different field names
+      // Topic search
       const searchFields = {
-        'Biblical studies': 'biblical',
+        'Biblical studies': 'biblical studies',
         'Theology': 'theology',
         'Philosophy of religion': 'philosophy religion',
         'Religious studies': 'religious studies',
@@ -818,28 +854,41 @@
         'Gender studies': 'gender studies'
       };
       
-      if (keyword) {
-        query += "title:" + encodeURIComponent('"' + keyword + '"');
+      // ISSN filter (if provided)
+      if (issn && issn.trim()) {
+        queryParts.push("issn:" + issn.trim());
       }
       
+      // Keyword search
+      if (keyword) {
+        queryParts.push('title:"' + keyword + '"');
+      }
+      
+      // Topic filter (unless searching all or random)
       if (topic && !random && !lastIsAll) {
         const searchTerm = searchFields[topic] || topic;
-        if (query) query += " AND ";
-        query += "(" + searchTerm + ")";
+        if (queryParts.length > 0) {
+          // Add topic as an additional filter
+          queryParts.push(searchTerm);
+        } else {
+          queryParts.push(searchTerm);
+        }
       }
       
       // For random, use a broad query
       if (random) {
-        query = "humanities OR philosophy OR literature";
+        queryParts = ["humanities OR philosophy OR literature"];
       }
       
-      // Add limit and offset
+      // Build the query string
+      let query = queryParts.join(" AND ");
+      
+      // Add parameters
       query += "&limit=" + limit;
       query += "&offset=" + start;
       
-      // Sort by date for newest, or random
+      // Sort by date for newest
       if (random) {
-        // CORE doesn't support random sorting, so we'll use a random offset
         const randomOffset = Math.floor(Math.random() * 500);
         query = query.replace(/offset=\d+/, "offset=" + randomOffset);
       } else {
@@ -850,19 +899,23 @@
       return query;
     }
 
-    // ---------- Load paper ----------
+    // ---------- Load paper (only with PDF) ----------
     async function loadPaper(topic, random) {
-      showStatus(random ? "Loading random paper…" : "Loading newest paper…");
+      showStatus(random ? "Loading random paper with PDF…" : "Loading newest paper with PDF…");
       if (resultsSection) resultsSection.hidden = true;
       currentTopic = topic;
 
       try {
-        const query = buildCOREQuery(topic, null, 0, 1, random);
+        const issn = issnInput ? issnInput.value.trim() : "";
+        let query = buildCOREQuery(topic, null, issn, 0, 20, random);
         const data = await fetchCORE(query);
-        const papers = parseCORE(data);
+        let papers = parseCORE(data);
+
+        // Filter to only those with PDFs
+        papers = papers.filter(function(p) { return p.has_pdf; });
 
         if (!papers || papers.length === 0) {
-          showStatus("No papers found for: " + topic + ". Try a different topic.");
+          showStatus("No papers with PDF found for: " + topic + ". Try a different topic.");
           return;
         }
         showPaper(papers[0]);
@@ -872,7 +925,7 @@
       }
     }
 
-    // ---------- Search ----------
+    // ---------- Search (only with PDF) ----------
     async function runSearch(start) {
       start = start || 0;
       const keyword = (keywordInput && keywordInput.value) ? keywordInput.value.trim() : "";
@@ -883,28 +936,35 @@
 
       currentStart = start;
       if (resultsSection) resultsSection.hidden = false;
-      resultsBox.innerHTML = '<div class="status" style="padding:1rem">Searching…</div>';
+      resultsBox.innerHTML = '<div class="status" style="padding:1rem">Searching for papers with PDFs…</div>';
       if (resultsInfo) resultsInfo.textContent = "";
       if (prevBtn) prevBtn.disabled = true;
       if (nextBtn) nextBtn.disabled = true;
 
       try {
-        const query = buildCOREQuery(lastIsAll ? null : currentTopic, keyword, start, PAGE_SIZE, false);
+        const issn = issnInput ? issnInput.value.trim() : "";
+        let query = buildCOREQuery(lastIsAll ? null : currentTopic, keyword, issn, start, PAGE_SIZE * 3, false);
         const data = await fetchCORE(query);
-        const papers = parseCORE(data);
+        let papers = parseCORE(data);
+
+        // Filter to only those with PDFs
+        papers = papers.filter(function(p) { return p.has_pdf; });
         currentPapers = papers;
 
         resultsBox.innerHTML = "";
         if (!papers || papers.length === 0) {
-          resultsBox.innerHTML = '<div class="status" style="padding:1rem">No results found for: "' + keyword + '"</div>';
+          resultsBox.innerHTML = '<div class="status" style="padding:1rem">No papers with PDF found for: "' + keyword + '"</div>';
           return;
         }
+
+        // Limit to PAGE_SIZE
+        papers = papers.slice(0, PAGE_SIZE);
 
         papers.forEach(function (p) {
           const div = document.createElement("div");
           div.className = "result-item";
           div.innerHTML =
-            '<div class="result-title">' + escapeHtml(p.title) + '</div>' +
+            '<div class="result-title">' + escapeHtml(p.title) + ' <span class="pdf-badge">PDF</span></div>' +
             '<div class="result-meta">' + escapeHtml(p.authors) + " · " + p.published + " · " + escapeHtml(p.topics) + "</div>";
           div.addEventListener("click", function () {
             showPaper(p);
@@ -999,6 +1059,12 @@
     if (topicSelect) {
       topicSelect.addEventListener("change", function () {
         currentTopic = topicSelect.value;
+        loadPaper(currentTopic, false);
+      });
+    }
+
+    if (issnInput) {
+      issnInput.addEventListener("change", function () {
         loadPaper(currentTopic, false);
       });
     }
