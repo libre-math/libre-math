@@ -3,7 +3,6 @@
 // =========================================================
 
 const API = "https://export.arxiv.org/api/query";
-// Simple public CORS proxy (needed because arXiv blocked browser CORS in 2026)
 const PROXY = "https://corsproxy.io/?";
 
 const categorySelect = document.getElementById("category-select");
@@ -24,7 +23,7 @@ let lastQuery = "";
 let lastIsAll = false;
 const PAGE_SIZE = 10;
 
-// ---------- Theme (completely independent from the rest of the site) ----------
+// ---------- Theme ----------
 function applyTheme(theme) {
   document.documentElement.setAttribute("data-theme", theme);
   if (themeToggle) {
@@ -98,7 +97,14 @@ function parseEntries(xmlText) {
     const authors = Array.from(authorNodes).map(function (n) { return n.textContent.trim(); }).join(", ");
     const catNodes = entry.querySelectorAll("category");
     const cats = Array.from(catNodes).map(function (c) { return c.getAttribute("term"); }).filter(Boolean).join(", ");
-    return { arxivId: arxivId, title: title, summary: summary, published: published, authors: authors, cats: cats };
+    return {
+      arxivId: arxivId,
+      title: title,
+      summary: summary,
+      published: published,
+      authors: authors,
+      cats: cats
+    };
   });
 }
 
@@ -232,7 +238,9 @@ if (keywordInput) {
 
 if (prevBtn) {
   prevBtn.addEventListener("click", function () {
-    if (currentStart >= PAGE_SIZE) runSearch(currentStart - PAGE_SIZE);
+    if (currentStart >= PAGE_SIZE) {
+      runSearch(currentStart - PAGE_SIZE);
+    }
   });
 }
 
@@ -240,6 +248,11 @@ if (nextBtn) {
   nextBtn.addEventListener("click", function () {
     runSearch(currentStart + PAGE_SIZE);
   });
+}
+
+// ---------- Start ----------
+if (categorySelect) {
+  loadNewest(categorySelect.value);
 }
 
 // ---------- Start ----------
