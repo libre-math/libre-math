@@ -587,11 +587,8 @@
 
   <script>
     // =========================================================
-    // OpenAlex Technical Report — complete version
+    // OpenAlex Technical Report — Fixed API calls
     // =========================================================
-
-    const API = "https://api.openalex.org/works";
-    const PROXY = "https://corsproxy.io/?";
 
     const topicSelect = document.getElementById("topic-select");
     const keywordInput = document.getElementById("keyword-input");
@@ -613,6 +610,7 @@
     let lastIsAll = false;
     const PAGE_SIZE = 10;
     let currentPapers = [];
+    let currentTopic = "philosophy";
 
     // ---------- Theme ----------
     function applyTheme(theme) {
@@ -666,11 +664,15 @@
       if (absLink) absLink.href = paper.openalex_url || "#";
       if (pdfLink) {
         pdfLink.href = paper.pdf_url || paper.openalex_url || "#";
-        if (!paper.pdf_url) pdfLink.style.opacity = "0.5";
-        else pdfLink.style.opacity = "1";
+        if (!paper.pdf_url) {
+          pdfLink.style.opacity = "0.5";
+          pdfLink.textContent = "No PDF";
+        } else {
+          pdfLink.style.opacity = "1";
+          pdfLink.textContent = "PDF";
+        }
       }
 
-      // Reset summary panel
       if (summaryBox) {
         summaryBox.innerHTML = '<p class="summary-placeholder">Click “Sum up” for a short, plain-English version of the abstract.</p>';
       }
@@ -719,74 +721,72 @@
         .replace(/"/g, "&quot;");
     }
 
-    // ---------- Build OpenAlex query ----------
-    function buildQuery(topic, keyword, start, count) {
-      const parts = [];
-      parts.push("filter=type:book-chapter,book,edited-book,reference-entry,review,report,peer-review");
+    // ---------- Direct fetch with CORS proxy ----------
+    async function fetchOpenAlex(queryParams) {
+      const baseUrl = "https://api.openalex.org/works";
+      const url = baseUrl + "?" + queryParams;
+      
+      // Try multiple CORS proxies
+      const proxies = [
+        "https://corsproxy.io/?" + encodeURIComponent(url),
+        "https://api.allorigins.win/raw?url=" + encodeURIComponent(url),
+        url // direct (might work in some browsers)
+      ];
 
-      if (topic && !lastIsAll) {
-        parts.push("topic.search=" + encodeURIComponent(topic));
+      for (let proxyUrl of proxies) {
+        try {
+          console.log("Trying:", proxyUrl);
+          const res = await fetch(proxyUrl, {
+            headers: {
+              'Accept': 'application/json',
+            }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            return data;
+          }
+        } catch (e) {
+          console.log("Proxy failed, trying next...");
+        }
       }
-
-      if (keyword) {
-        parts.push("title.search=" + encodeURIComponent('"' + keyword + '"'));
-      }
-
-      // Always order by relevance if keyword search, else by date
-      if (keyword) {
-        parts.push("sort=relevance_score:desc");
-      } else {
-        parts.push("sort=publication_date:desc");
-      }
-
-      parts.push("page=" + (Math.floor(start / count) + 1));
-      parts.push("per-page=" + count);
-
-      return parts.join("&");
-    }
-
-    // ---------- Fetch papers ----------
-    async function fetchPapers(topic, keyword, start, random) {
-      const count = random ? 1 : PAGE_SIZE;
-      let query;
-
-      if (random) {
-        // Get random by using a very large page number
-        const randomPage = Math.floor(Math.random() * 100) + 1;
-        query = "filter=type:book-chapter,book,edited-book,reference-entry,review,report,peer-review";
-        if (topic) query += "&topic.search=" + encodeURIComponent(topic);
-        query += "&sort=publication_date:desc";
-        query += "&page=" + randomPage;
-        query += "&per-page=1";
-      } else {
-        query = buildQuery(topic, keyword, start, count);
-      }
-
-      const url = PROXY + encodeURIComponent(API + "?" + query);
-
-      try {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        const data = await res.json();
-        return parseOpenAlex(data);
-      } catch (err) {
-        console.error("Fetch error:", err);
-        return [];
-      }
+      throw new Error("All proxies failed");
     }
 
     // ---------- Load paper (newest or random) ----------
     async function loadPaper(topic, random) {
       showStatus(random ? "Loading random paper…" : "Loading newest paper…");
       if (resultsSection) resultsSection.hidden = true;
+      currentTopic = topic;
 
-      const papers = await fetchPapers(topic, "", 0, random);
+      try {
+        let query = "filter=type:book-chapter,book,edited-book,reference-entry,review,report,peer-review";
+        query += "&sort=publication_date:desc";
+        
+        if (topic) {
+          query += "&search=" + encodeURIComponent(topic);
+        }
 
-      if (!papers || papers.length === 0) {
-        showStatus("No papers found for this topic.");
-        return;
+        if (random) {
+          // Get random by using a random page
+          const randomPage = Math.floor(Math.random() * 50) + 1;
+          query += "&page=" + randomPage + "&per-page=1";
+        } else {
+          query += "&page=1&per-page=1";
+        }
+
+        console.log("Query:", query);
+        const data = await fetchOpenAlex(query);
+        const papers = parseOpenAlex(data);
+
+        if (!papers || papers.length === 0) {
+          showStatus("No papers found for: " + topic);
+          return;
+        }
+        showPaper(papers[0]);
+      } catch (err) {
+        console.error("Load error:", err);
+        showStatus("Error loading papers. Check console for details.");
       }
-      showPaper(papers[0]);
     }
 
     // ---------- Search (title only) ----------
@@ -805,35 +805,52 @@
       if (prevBtn) prevBtn.disabled = true;
       if (nextBtn) nextBtn.disabled = true;
 
-      let topic = lastIsAll ? "" : topicSelect.value;
-      const papers = await fetchPapers(topic, keyword, start, false);
-      currentPapers = papers;
+      try {
+        let query = "filter=type:book-chapter,book,edited-book,reference-entry,review,report,peer-review";
+        query += "&search=" + encodeURIComponent('"' + keyword + '"');
+        query += "&sort=relevance_score:desc";
+        query += "&page=" + (Math.floor(start / PAGE_SIZE) + 1);
+        query += "&per-page=" + PAGE_SIZE;
 
-      resultsBox.innerHTML = "";
-      if (!papers || papers.length === 0) {
-        resultsBox.innerHTML = '<div class="status" style="padding:1rem">No results.</div>';
-        return;
-      }
+        if (!lastIsAll && currentTopic) {
+          // Add topic filter
+          query += "&filter=default.search:" + encodeURIComponent(currentTopic);
+        }
 
-      papers.forEach(function (p) {
-        const div = document.createElement("div");
-        div.className = "result-item";
-        div.innerHTML =
-          '<div class="result-title">' + escapeHtml(p.title) + '</div>' +
-          '<div class="result-meta">' + escapeHtml(p.authors) + " · " + p.published + " · " + escapeHtml(p.topics) + "</div>";
-        div.addEventListener("click", function () {
-          showPaper(p);
-          window.scrollTo({ top: 0, behavior: "smooth" });
+        console.log("Search query:", query);
+        const data = await fetchOpenAlex(query);
+        const papers = parseOpenAlex(data);
+        currentPapers = papers;
+
+        resultsBox.innerHTML = "";
+        if (!papers || papers.length === 0) {
+          resultsBox.innerHTML = '<div class="status" style="padding:1rem">No results found for: "' + keyword + '"</div>';
+          return;
+        }
+
+        papers.forEach(function (p) {
+          const div = document.createElement("div");
+          div.className = "result-item";
+          div.innerHTML =
+            '<div class="result-title">' + escapeHtml(p.title) + '</div>' +
+            '<div class="result-meta">' + escapeHtml(p.authors) + " · " + p.published + " · " + escapeHtml(p.topics) + "</div>";
+          div.addEventListener("click", function () {
+            showPaper(p);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          });
+          resultsBox.appendChild(div);
         });
-        resultsBox.appendChild(div);
-      });
 
-      if (resultsInfo) resultsInfo.textContent = (start + 1) + "–" + (start + papers.length);
-      if (prevBtn) prevBtn.disabled = start === 0;
-      if (nextBtn) nextBtn.disabled = papers.length < PAGE_SIZE;
+        if (resultsInfo) resultsInfo.textContent = (start + 1) + "–" + (start + papers.length);
+        if (prevBtn) prevBtn.disabled = start === 0;
+        if (nextBtn) nextBtn.disabled = papers.length < PAGE_SIZE;
+      } catch (err) {
+        console.error("Search error:", err);
+        resultsBox.innerHTML = '<div class="status" style="padding:1rem">Search failed. Please try again.</div>';
+      }
     }
 
-    // ---------- Hugging Face free summary (no key) ----------
+    // ---------- Hugging Face free summary ----------
     async function summarizeAbstract() {
       const abstractEl = document.getElementById("paper-abstract");
       const abstract = abstractEl ? abstractEl.textContent.trim() : "";
@@ -909,7 +926,8 @@
     // ---------- Events ----------
     if (topicSelect) {
       topicSelect.addEventListener("change", function () {
-        loadPaper(topicSelect.value, false);
+        currentTopic = topicSelect.value;
+        loadPaper(currentTopic, false);
       });
     }
 
@@ -952,7 +970,7 @@
 
     if (randomPaperBtn) {
       randomPaperBtn.addEventListener("click", function () {
-        loadPaper(topicSelect.value, true);
+        loadPaper(currentTopic, true);
       });
     }
 
@@ -962,7 +980,8 @@
 
     // ---------- Start ----------
     if (topicSelect) {
-      loadPaper(topicSelect.value, false);
+      currentTopic = topicSelect.value;
+      loadPaper(currentTopic, false);
     }
   </script>
 </body>
