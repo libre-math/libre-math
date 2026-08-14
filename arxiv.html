@@ -57,27 +57,41 @@
 
       <hr class="rule">
 
-      <!-- Main paper view -->
-      <section id="paper-view" class="paper-view">
-        <div id="paper-status" class="status">Loading newest paper…</div>
+     <!-- Main paper view -->
+<section id="paper-view" class="paper-view">
+  <div id="paper-status" class="status">Loading newest paper…</div>
 
-        <div id="paper-content" hidden>
-          <div class="paper-meta">
-            <span id="paper-id" class="mono"></span>
-            <span id="paper-date" class="mono"></span>
-            <span id="paper-cats" class="mono"></span>
-          </div>
-          <h2 id="paper-title" class="paper-title"></h2>
-          <p id="paper-authors" class="paper-authors mono"></p>
-          <hr class="rule">
-          <div id="paper-abstract" class="paper-abstract"></div>
-          <div class="paper-actions">
-            <a id="paper-abs-link" class="btn" target="_blank" rel="noopener">Abstract page</a>
-            <a id="paper-pdf-link" class="btn" target="_blank" rel="noopener">PDF</a>
-            <button id="random-paper-btn" class="btn">Random paper</button>
-          </div>
-        </div>
-      </section>
+  <div id="paper-content" class="paper-layout" hidden>
+    <!-- LEFT: the paper -->
+    <div class="paper-main">
+      <div class="paper-meta">
+        <span id="paper-id" class="mono"></span>
+        <span id="paper-date" class="mono"></span>
+        <span id="paper-cats" class="mono"></span>
+      </div>
+      <h2 id="paper-title" class="paper-title"></h2>
+      <p id="paper-authors" class="paper-authors mono"></p>
+      <hr class="rule">
+      <div id="paper-abstract" class="paper-abstract"></div>
+      <div class="paper-actions">
+        <a id="paper-abs-link" class="btn" target="_blank" rel="noopener">Abstract page</a>
+        <a id="paper-pdf-link" class="btn" target="_blank" rel="noopener">PDF</a>
+        <button id="random-paper-btn" class="btn">Random paper</button>
+      </div>
+    </div>
+
+    <!-- RIGHT: short summary -->
+    <aside class="summary-panel">
+      <div class="summary-header">
+        <span class="summary-label">Quick take</span>
+        <button id="summarize-btn" class="btn btn-outline">Sum up</button>
+      </div>
+      <div id="summary-box" class="summary-box">
+        <p class="summary-placeholder">Click “Sum up” for a short, plain-English version of the abstract.</p>
+      </div>
+    </aside>
+  </div>
+</section>
 
       <!-- Search results -->
       <section id="results-section" class="results-section" hidden>
