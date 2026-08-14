@@ -84,20 +84,22 @@ async function loadNewest(category) {
 
   try {
     const res = await fetch(url);
-    if (!res.ok) throw new Error("Network error");
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
     const text = await res.text();
     const papers = parseEntries(text);
-    if (papers.length === 0) {
+
+    if (!papers || papers.length === 0) {
       showStatus("No papers found in this category.");
       return;
     }
     showPaper(papers[0]);
   } catch (err) {
-    showStatus("Could not load papers. Try again later.");
-    console.error(err);
+    console.error("loadNewest error:", err);
+    showStatus("Could not reach arXiv. Check the browser console (F12) for details.");
   }
 }
-
 // ---------- Search ----------
 async function runSearch(start = 0) {
   const keyword = keywordInput.value.trim();
