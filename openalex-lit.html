@@ -970,4 +970,56 @@
 
     if (searchBtn) {
       searchBtn.addEventListener("click", function () {
-        lastIsAll = false
+        lastIsAll = false;
+        runSearch(0);
+      });
+    }
+
+    if (searchAllBtn) {
+      searchAllBtn.addEventListener("click", function () {
+        lastIsAll = true;
+        runSearch(0);
+      });
+    }
+
+    if (keywordInput) {
+      keywordInput.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+          lastIsAll = false;
+          runSearch(0);
+        }
+      });
+    }
+
+    if (prevBtn) {
+      prevBtn.addEventListener("click", function () {
+        if (currentStart >= PAGE_SIZE) {
+          runSearch(currentStart - PAGE_SIZE);
+        }
+      });
+    }
+
+    if (nextBtn) {
+      nextBtn.addEventListener("click", function () {
+        runSearch(currentStart + PAGE_SIZE);
+      });
+    }
+
+    if (randomPaperBtn) {
+      randomPaperBtn.addEventListener("click", function () {
+        loadPaper(currentTopicName, true);
+      });
+    }
+
+    if (summarizeBtn) {
+      summarizeBtn.addEventListener("click", summarizeAbstract);
+    }
+
+    // ---------- Start ----------
+    if (topicSelect) {
+      currentTopicName = topicSelect.value;
+      loadPaper(currentTopicName, false);
+    }
+  </script>
+</body>
+</html>
