@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Browse the newest mathematics papers from arXiv — technical report style.">
+  <title>arXiv Papers | Libre Math</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="arxiv.css">
+</head>
+<body>
+
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <div class="report">
+    <!-- Report header -->
+    <header class="report-header">
+      <div class="report-header-left">
+        <div class="report-agency">LIBRE MATH · TECHNICAL MEMORANDUM</div>
+        <h1 class="report-title">arXiv Mathematics Papers</h1>
+      </div>
+      <div class="report-header-right">
+        <button id="theme-toggle" class="btn" aria-label="Toggle theme">Dark</button>
+        <a href="index.html" class="btn btn-outline">← Home</a>
+      </div>
+    </header>
+
+    <main id="main-content" class="report-body">
+
+      <!-- Controls -->
+      <section class="controls">
+        <div class="control-group">
+          <label for="category-select">Category</label>
+          <select id="category-select">
+            <!-- You will fill the real categories later -->
+            <option value="math.NT">math.NT — Number Theory</option>
+            <option value="math.AG">math.AG — Algebraic Geometry</option>
+            <option value="math.CO">math.CO — Combinatorics</option>
+            <option value="math.PR">math.PR — Probability</option>
+            <option value="math.DS">math.DS — Dynamical Systems</option>
+            <option value="math">math — All Mathematics</option>
+          </select>
+        </div>
+
+        <div class="control-group search-group">
+          <label for="keyword-input">Keyword search</label>
+          <div class="search-row">
+            <input type="text" id="keyword-input" placeholder="e.g. modular forms, random matrix…" autocomplete="off">
+            <button id="search-btn" class="btn">Search</button>
+            <button id="search-all-btn" class="btn btn-outline" title="Search across all listed categories">Search all</button>
+          </div>
+        </div>
+      </section>
+
+      <hr class="rule">
+
+      <!-- Main paper view -->
+      <section id="paper-view" class="paper-view">
+        <div id="paper-status" class="status">Loading newest paper…</div>
+
+        <div id="paper-content" hidden>
+          <div class="paper-meta">
+            <span id="paper-id" class="mono"></span>
+            <span id="paper-date" class="mono"></span>
+            <span id="paper-cats" class="mono"></span>
+          </div>
+          <h2 id="paper-title" class="paper-title"></h2>
+          <p id="paper-authors" class="paper-authors mono"></p>
+          <hr class="rule">
+          <div id="paper-abstract" class="paper-abstract"></div>
+          <div class="paper-actions">
+            <a id="paper-abs-link" class="btn" target="_blank" rel="noopener">Abstract page</a>
+            <a id="paper-pdf-link" class="btn" target="_blank" rel="noopener">PDF</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Search results -->
+      <section id="results-section" class="results-section" hidden>
+        <div class="results-header">
+          <h3>Search results</h3>
+          <div class="results-nav">
+            <button id="prev-btn" class="btn btn-outline" disabled>← Previous</button>
+            <span id="results-info" class="mono"></span>
+            <button id="next-btn" class="btn btn-outline" disabled>Next 10 →</button>
+          </div>
+        </div>
+        <div id="results-box" class="results-box"></div>
+      </section>
+
+    </main>
+
+    <footer class="report-footer">
+      Data from the arXiv API · Libre Math
+    </footer>
+  </div>
+
+  <script src="arxiv.js"></script>
+</body>
+</html>
