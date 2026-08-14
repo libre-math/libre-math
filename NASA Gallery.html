@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Browse real photos from NASA space probes — Juno, Cassini, Voyager, and more — pulled live from NASA's public image library.">
+  <title>Space Gallery | Libre Math</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<a class="skip-link" href="#main-content">Skip to content</a>
+
+<div class="sheet">
+<header>
+  <div class="header-title">
+    <h1>Libre Math</h1>
+    <p>Space Gallery</p>
+  </div>
+  <button id="theme-toggle" aria-label="Toggle dark mode" aria-pressed="false">🌙</button>
+</header>
+
+<div class="container">
+  <nav aria-label="Lessons">
+    <h2>Lessons</h2>
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="usual-derivatives.html">Usual Derivatives</a></li>
+      <li><strong aria-current="page">Space Gallery</strong></li>
+    </ul>
+  </nav>
+
+  <main id="main-content">
+    <h2>Space Gallery</h2>
+    <p>
+      Real photos from NASA space missions, pulled live from NASA's public
+      Image and Video Library. Pick a mission below and click through —
+      every image is real flight data, with NASA's own caption underneath.
+    </p>
+
+    <div class="gallery-controls">
+      <div class="gallery-select-wrap">
+        <label for="gallery-mission">Mission</label>
+        <select id="gallery-mission"></select>
+      </div>
+      <button id="gallery-next" class="gallery-next-btn" disabled>Next image →</button>
+    </div>
+
+    <figure class="gallery-frame" id="gallery-frame">
+      <div class="gallery-image-wrap">
+        <img id="gallery-image" alt="">
+        <div class="gallery-status" id="gallery-status">Loading images…</div>
+      </div>
+      <figcaption class="gallery-caption">
+        <h3 id="gallery-title"></h3>
+        <span class="gallery-date" id="gallery-date"></span>
+        <p class="gallery-description" id="gallery-description"></p>
+      </figcaption>
+    </figure>
+
+    <p class="gallery-credit">
+      Images and captions courtesy of NASA's public Image and Video Library
+      (images-api.nasa.gov). NASA content is generally not copyrighted.
+    </p>
+  </main>
+</div>
+
+<footer>
+  &copy; 2025 Libre Math
+</footer>
+</div>
+
+<script src="theme.js"></script>
+<script src="gallery.js"></script>
+</body>
+</html>
