@@ -1,25 +1,50 @@
 // =========================================================
-// arXiv Technical Report — complete version
+// arXiv Technical Report
+// Main JavaScript
+//
+// Requirements in arxiv.html:
+//
+// <script src="scientific-dictionary.js"></script>
+// <script src="arxiv.js"></script>
+//
+// Compromise is OPTIONAL.
+// The simplifier works without it.
 // =========================================================
+
 
 const API = "https://export.arxiv.org/api/query";
 const PROXY = "https://corsproxy.io/?";
+
+
+// =========================================================
+// DOM ELEMENTS
+// =========================================================
 
 const categorySelect = document.getElementById("category-select");
 const keywordInput   = document.getElementById("keyword-input");
 const searchBtn      = document.getElementById("search-btn");
 const searchAllBtn   = document.getElementById("search-all-btn");
+
 const paperStatus    = document.getElementById("paper-status");
 const paperContent   = document.getElementById("paper-content");
+
 const resultsSection = document.getElementById("results-section");
 const resultsBox     = document.getElementById("results-box");
 const resultsInfo    = document.getElementById("results-info");
+
 const prevBtn        = document.getElementById("prev-btn");
 const nextBtn        = document.getElementById("next-btn");
+
 const themeToggle    = document.getElementById("theme-toggle");
 const randomPaperBtn = document.getElementById("random-paper-btn");
+
 const summarizeBtn   = document.getElementById("summarize-btn");
 const summaryBox     = document.getElementById("summary-box");
+
+
+// =========================================================
+// STATE
+// =========================================================
 
 let currentStart = 0;
 let lastIsAll = false;
@@ -28,19 +53,22 @@ const PAGE_SIZE = 10;
 
 
 // =========================================================
-// Theme
+// THEME
 // =========================================================
 
 function applyTheme(theme) {
   document.documentElement.setAttribute("data-theme", theme);
 
   if (themeToggle) {
-    themeToggle.textContent = theme === "dark" ? "Light" : "Dark";
+    themeToggle.textContent =
+      theme === "dark" ? "Light" : "Dark";
   }
 
   try {
     localStorage.setItem("arxiv-theme", theme);
-  } catch (e) {}
+  } catch (e) {
+    // localStorage may be unavailable.
+  }
 }
 
 
@@ -48,7 +76,8 @@ function applyTheme(theme) {
   let saved = "light";
 
   try {
-    saved = localStorage.getItem("arxiv-theme") || "light";
+    saved =
+      localStorage.getItem("arxiv-theme") || "light";
   } catch (e) {}
 
   applyTheme(saved);
@@ -57,31 +86,37 @@ function applyTheme(theme) {
 
 if (themeToggle) {
   themeToggle.addEventListener("click", function () {
-    const current =
-      document.documentElement.getAttribute("data-theme") || "light";
 
-    applyTheme(current === "dark" ? "light" : "dark");
+    const current =
+      document.documentElement.getAttribute("data-theme") ||
+      "light";
+
+    applyTheme(
+      current === "dark" ? "light" : "dark"
+    );
   });
 }
 
 
 // =========================================================
-// Helpers
+// STATUS / PAPER DISPLAY
 // =========================================================
 
-function showStatus(msg) {
+function showStatus(message) {
+
   if (paperContent) {
     paperContent.hidden = true;
   }
 
   if (paperStatus) {
     paperStatus.hidden = false;
-    paperStatus.textContent = msg;
+    paperStatus.textContent = message;
   }
 }
 
 
 function showPaper(paper) {
+
   if (paperStatus) {
     paperStatus.hidden = true;
   }
@@ -89,6 +124,7 @@ function showPaper(paper) {
   if (paperContent) {
     paperContent.hidden = false;
   }
+
 
   document.getElementById("paper-id").textContent =
     paper.arxivId || "";
@@ -108,20 +144,30 @@ function showPaper(paper) {
   document.getElementById("paper-abstract").textContent =
     paper.summary || "";
 
-  const absLink = document.getElementById("paper-abs-link");
-  const pdfLink = document.getElementById("paper-pdf-link");
+
+  const absLink =
+    document.getElementById("paper-abs-link");
+
+  const pdfLink =
+    document.getElementById("paper-pdf-link");
+
 
   if (absLink) {
     absLink.href =
-      "https://arxiv.org/abs/" + paper.arxivId;
+      "https://arxiv.org/abs/" +
+      paper.arxivId;
   }
 
   if (pdfLink) {
     pdfLink.href =
-      "https://arxiv.org/pdf/" + paper.arxivId + ".pdf";
+      "https://arxiv.org/pdf/" +
+      paper.arxivId +
+      ".pdf";
   }
 
-  // Reset summary
+
+  // Reset summary.
+
   if (summaryBox) {
     summaryBox.innerHTML =
       '<p class="summary-placeholder">' +
@@ -131,54 +177,95 @@ function showPaper(paper) {
 }
 
 
+// =========================================================
+// XML PARSER
+// =========================================================
+
 function parseEntries(xmlText) {
+
   const parser = new DOMParser();
-  const doc = parser.parseFromString(xmlText, "application/xml");
+
+  const doc =
+    parser.parseFromString(
+      xmlText,
+      "application/xml"
+    );
+
 
   if (doc.querySelector("parsererror")) {
     return [];
   }
 
-  return Array.from(doc.querySelectorAll("entry")).map(function (entry) {
+
+  return Array.from(
+    doc.querySelectorAll("entry")
+  ).map(function (entry) {
+
+    const idNode =
+      entry.querySelector("id");
+
     const idUrl =
-      (entry.querySelector("id") &&
-        entry.querySelector("id").textContent) ||
-      "";
+      idNode
+        ? idNode.textContent
+        : "";
+
 
     const arxivId =
-      idUrl.split("/abs/").pop() || idUrl;
+      idUrl.split("/abs/").pop() ||
+      idUrl;
+
+
+    const titleNode =
+      entry.querySelector("title");
 
     const title =
-      ((entry.querySelector("title") &&
-        entry.querySelector("title").textContent) || "")
-        .replace(/\s+/g, " ")
-        .trim();
+      titleNode
+        ? titleNode.textContent
+            .replace(/\s+/g, " ")
+            .trim()
+        : "";
+
+
+    const summaryNode =
+      entry.querySelector("summary");
 
     const summary =
-      ((entry.querySelector("summary") &&
-        entry.querySelector("summary").textContent) || "")
-        .replace(/\s+/g, " ")
-        .trim();
+      summaryNode
+        ? summaryNode.textContent
+            .replace(/\s+/g, " ")
+            .trim()
+        : "";
+
+
+    const publishedNode =
+      entry.querySelector("published");
 
     const published =
-      ((entry.querySelector("published") &&
-        entry.querySelector("published").textContent) || "")
-        .slice(0, 10);
+      publishedNode
+        ? publishedNode.textContent.slice(0, 10)
+        : "";
+
 
     const authors =
-      Array.from(entry.querySelectorAll("author name"))
-        .map(function (n) {
-          return n.textContent.trim();
-        })
-        .join(", ");
+      Array.from(
+        entry.querySelectorAll("author name")
+      )
+      .map(function (node) {
+        return node.textContent.trim();
+      })
+      .join(", ");
+
 
     const cats =
-      Array.from(entry.querySelectorAll("category"))
-        .map(function (c) {
-          return c.getAttribute("term");
-        })
-        .filter(Boolean)
-        .join(", ");
+      Array.from(
+        entry.querySelectorAll("category")
+      )
+      .map(function (node) {
+        return node.getAttribute("term");
+      })
+      .filter(Boolean)
+      .join(", ");
+
 
     return {
       arxivId: arxivId,
@@ -188,48 +275,82 @@ function parseEntries(xmlText) {
       authors: authors,
       cats: cats
     };
+
   });
 }
 
 
+// =========================================================
+// HTML ESCAPING
+// =========================================================
+
 function escapeHtml(str) {
+
   return String(str)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 
 // =========================================================
-// Load paper
+// CATEGORY QUERY
+// =========================================================
+
+function getCategoryQuery(category) {
+
+  if (category === "q-fin") {
+
+    return (
+      "(cat:q-fin.CP OR " +
+      "cat:q-fin.MF OR " +
+      "cat:q-fin.PM OR " +
+      "cat:q-fin.PR OR " +
+      "cat:q-fin.RM OR " +
+      "cat:q-fin.ST OR " +
+      "cat:q-fin.TR OR " +
+      "cat:q-fin.GN)"
+    );
+  }
+
+  return "cat:" + category;
+}
+
+
+// =========================================================
+// LOAD NEWEST / RANDOM PAPER
 // =========================================================
 
 async function loadPaper(category, random) {
+
   showStatus(
     random
       ? "Loading random paper…"
       : "Loading newest paper…"
   );
 
+
   if (resultsSection) {
     resultsSection.hidden = true;
   }
 
-  let catQuery = "cat:" + category;
 
-  if (category === "q-fin") {
-    catQuery =
-      "(cat:q-fin.CP OR cat:q-fin.MF OR cat:q-fin.PM OR " +
-      "cat:q-fin.PR OR cat:q-fin.RM OR cat:q-fin.ST OR " +
-      "cat:q-fin.TR OR cat:q-fin.GN)";
-  }
+  const catQuery =
+    getCategoryQuery(category);
+
 
   let start = 0;
 
+
   if (random) {
-    start = Math.floor(Math.random() * 200);
+    start =
+      Math.floor(
+        Math.random() * 200
+      );
   }
+
 
   const query =
     "search_query=" +
@@ -240,31 +361,51 @@ async function loadPaper(category, random) {
     start +
     "&max_results=1";
 
+
   const url =
     PROXY +
-    encodeURIComponent(API + "?" + query);
+    encodeURIComponent(
+      API + "?" + query
+    );
+
 
   try {
-    const res = await fetch(url);
+
+    const res =
+      await fetch(url);
+
 
     if (!res.ok) {
-      throw new Error("HTTP " + res.status);
+      throw new Error(
+        "HTTP " + res.status
+      );
     }
 
-    const text = await res.text();
-    const papers = parseEntries(text);
 
-    if (!papers || papers.length === 0) {
+    const text =
+      await res.text();
+
+
+    const papers =
+      parseEntries(text);
+
+
+    if (!papers.length) {
+
       showStatus(
         "No papers found in this category."
       );
+
       return;
     }
 
+
     showPaper(papers[0]);
 
-  } catch (err) {
-    console.error(err);
+
+  } catch (error) {
+
+    console.error(error);
 
     showStatus(
       "Could not reach arXiv. See console."
@@ -274,34 +415,53 @@ async function loadPaper(category, random) {
 
 
 // =========================================================
-// Search
+// SEARCH
 // =========================================================
 
 async function runSearch(start) {
-  start = start || 0;
+
+  if (typeof start !== "number") {
+    start = 0;
+  }
+
 
   const keyword =
-    keywordInput && keywordInput.value
+    keywordInput
       ? keywordInput.value.trim()
       : "";
 
+
   if (!keyword) {
-    alert("Please type a keyword first.");
+
+    alert(
+      "Please type a keyword first."
+    );
+
     return;
   }
 
+
   currentStart = start;
+
 
   if (resultsSection) {
     resultsSection.hidden = false;
   }
 
-  resultsBox.innerHTML =
-    '<div class="status" style="padding:1rem">Searching…</div>';
+
+  if (resultsBox) {
+
+    resultsBox.innerHTML =
+      '<div class="status" style="padding:1rem">' +
+      "Searching…" +
+      "</div>";
+  }
+
 
   if (resultsInfo) {
     resultsInfo.textContent = "";
   }
+
 
   if (prevBtn) {
     prevBtn.disabled = true;
@@ -311,50 +471,54 @@ async function runSearch(start) {
     nextBtn.disabled = true;
   }
 
+
   let searchQuery;
 
+
+  // -------------------------------------------------------
+  // Search all categories
+  // -------------------------------------------------------
+
   if (lastIsAll) {
+
     const cats =
-      Array.from(categorySelect.options)
-        .map(function (o) {
-          return o.value;
-        });
+      Array.from(
+        categorySelect.options
+      )
+      .map(function (option) {
+        return option.value;
+      });
+
 
     const catPart =
-      cats.map(function (c) {
-        return "cat:" + c;
-      }).join(" OR ");
+      cats
+        .map(function (category) {
+          return getCategoryQuery(category);
+        })
+        .join(" OR ");
+
 
     searchQuery =
       "(" +
       catPart +
-      ') AND ti:"' +
+      ") AND ti:\"" +
       keyword +
-      '"';
+      "\"";
+
 
   } else {
 
-    const cat = categorySelect.value;
+    const category =
+      categorySelect.value;
 
-    if (cat === "q-fin") {
 
-      searchQuery =
-        "(cat:q-fin.CP OR cat:q-fin.MF OR cat:q-fin.PM OR " +
-        "cat:q-fin.PR OR cat:q-fin.RM OR cat:q-fin.ST OR " +
-        "cat:q-fin.TR OR cat:q-fin.GN) AND ti:\"" +
-        keyword +
-        "\"";
-
-    } else {
-
-      searchQuery =
-        "cat:" +
-        cat +
-        ' AND ti:"' +
-        keyword +
-        '"';
-    }
+    searchQuery =
+      getCategoryQuery(category) +
+      ' AND ti:"' +
+      keyword +
+      '"';
   }
+
 
   const query =
     "search_query=" +
@@ -366,24 +530,44 @@ async function runSearch(start) {
     "&max_results=" +
     PAGE_SIZE;
 
+
   const url =
     PROXY +
-    encodeURIComponent(API + "?" + query);
+    encodeURIComponent(
+      API + "?" + query
+    );
+
 
   try {
 
-    const res = await fetch(url);
+    const res =
+      await fetch(url);
+
 
     if (!res.ok) {
-      throw new Error("HTTP " + res.status);
+      throw new Error(
+        "HTTP " + res.status
+      );
     }
 
-    const text = await res.text();
-    const papers = parseEntries(text);
+
+    const text =
+      await res.text();
+
+
+    const papers =
+      parseEntries(text);
+
+
+    if (!resultsBox) {
+      return;
+    }
+
 
     resultsBox.innerHTML = "";
 
-    if (!papers || papers.length === 0) {
+
+    if (!papers.length) {
 
       resultsBox.innerHTML =
         '<div class="status" style="padding:1rem">' +
@@ -393,86 +577,117 @@ async function runSearch(start) {
       return;
     }
 
-    papers.forEach(function (p) {
 
-      const div = document.createElement("div");
+    papers.forEach(function (paper) {
 
-      div.className = "result-item";
+      const div =
+        document.createElement("div");
+
+
+      div.className =
+        "result-item";
+
 
       div.innerHTML =
         '<div class="result-title">' +
-        escapeHtml(p.title) +
+        escapeHtml(paper.title) +
         "</div>" +
 
         '<div class="result-meta">' +
-        escapeHtml(p.authors) +
+        escapeHtml(paper.authors) +
         " · " +
-        p.published +
+        escapeHtml(paper.published) +
         " · " +
-        escapeHtml(p.cats) +
+        escapeHtml(paper.cats) +
         "</div>";
 
-      div.addEventListener("click", function () {
 
-        showPaper(p);
+      div.addEventListener(
+        "click",
+        function () {
 
-        window.scrollTo({
-          top: 0,
-          behavior: "smooth"
-        });
+          showPaper(paper);
 
-      });
+          window.scrollTo({
+            top: 0,
+            behavior: "smooth"
+          });
+        }
+      );
+
 
       resultsBox.appendChild(div);
     });
 
+
     if (resultsInfo) {
+
       resultsInfo.textContent =
         (start + 1) +
         "–" +
         (start + papers.length);
     }
 
+
     if (prevBtn) {
-      prevBtn.disabled = start === 0;
+      prevBtn.disabled =
+        start === 0;
     }
+
 
     if (nextBtn) {
       nextBtn.disabled =
         papers.length < PAGE_SIZE;
     }
 
-  } catch (err) {
 
-    console.error(err);
+  } catch (error) {
 
-    resultsBox.innerHTML =
-      '<div class="status" style="padding:1rem">' +
-      "Search failed." +
-      "</div>";
+    console.error(error);
+
+    if (resultsBox) {
+
+      resultsBox.innerHTML =
+        '<div class="status" style="padding:1rem">' +
+        "Search failed." +
+        "</div>";
+    }
   }
 }
 
 
 // =========================================================
-// Simple local summarizer
-// Uses Compromise for sentence analysis.
-// No API, no model, no server.
+// ABSTRACT SIMPLIFIER
+// =========================================================
+//
+// No AI.
+// No API.
+// No subscription.
+// No model download.
+//
+// Compromise is optional. If it is loaded, we use it.
+// If it isn't loaded, the browser's own sentence splitting
+// is used instead.
 // =========================================================
 
 function summarizeAbstract() {
 
   const abstractEl =
-    document.getElementById("paper-abstract");
+    document.getElementById(
+      "paper-abstract"
+    );
+
 
   const abstract =
     abstractEl
       ? abstractEl.textContent.trim()
       : "";
 
+
   if (!abstract) {
 
     if (summaryBox) {
+
       summaryBox.innerHTML =
         '<p class="summary-placeholder">' +
         "No abstract to simplify." +
@@ -482,23 +697,37 @@ function summarizeAbstract() {
     return;
   }
 
+
   if (summarizeBtn) {
     summarizeBtn.disabled = true;
   }
 
+
   if (summaryBox) {
+
     summaryBox.innerHTML =
       '<p class="summary-loading">' +
       "Making it simpler…" +
       "</p>";
   }
 
+
+  // Allow browser to paint the loading message.
+
   setTimeout(function () {
 
     try {
 
       const summary =
-        simplifyWithCompromise(abstract);
+        simplifyAbstract(abstract);
+
+
+      if (!summary) {
+        throw new Error(
+          "No simplified text was produced."
+        );
+      }
+
 
       if (summaryBox) {
 
@@ -508,12 +737,14 @@ function summarizeAbstract() {
           "</p>";
       }
 
-    } catch (err) {
+
+    } catch (error) {
 
       console.error(
         "Simplification error:",
-        err
+        error
       );
+
 
       if (summaryBox) {
 
@@ -523,10 +754,12 @@ function summarizeAbstract() {
           "</p>";
       }
 
-    }
 
-    if (summarizeBtn) {
-      summarizeBtn.disabled = false;
+    } finally {
+
+      if (summarizeBtn) {
+        summarizeBtn.disabled = false;
+      }
     }
 
   }, 50);
@@ -534,175 +767,35 @@ function summarizeAbstract() {
 
 
 // =========================================================
-// Main simplification
+// MAIN ABSTRACT SIMPLIFIER
 // =========================================================
 
-function simplifyWithCompromise(text) {
-
-  if (typeof nlp !== "function") {
-    throw new Error(
-      "Compromise.js was not loaded."
-    );
-  }
-
-  // Create NLP document.
-  const doc = nlp(text);
-
-  // Remove obvious citation references.
-  let cleanText = text
-    .replace(/\[[0-9,\-\s]+\]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  // Parse cleaned text.
-  const cleanDoc = nlp(cleanText);
+function simplifyAbstract(text) {
 
   let sentences =
-    cleanDoc
-      .sentences()
-      .out("array")
-      .map(function (sentence) {
-        return sentence
-          .replace(/\s+/g, " ")
-          .trim();
-      })
-      .filter(function (sentence) {
-        return sentence.length > 30;
-      });
+    splitIntoSentences(text);
+
 
   if (!sentences.length) {
     return simplifySentence(text);
   }
 
 
-  // -------------------------------------------------------
-  // Important concepts
-  // -------------------------------------------------------
+  // Remove very short fragments.
 
-  const importantTerms = [
-    "study",
-    "investigate",
-    "examine",
-    "analyze",
-    "analyse",
-    "propose",
-    "present",
-    "develop",
-    "introduce",
-    "show",
-    "shows",
-    "find",
-    "finds",
-    "found",
-    "result",
-    "results",
-    "experiment",
-    "experiments",
-    "data",
-    "dataset",
-    "datasets",
-    "model",
-    "models",
-    "method",
-    "methods",
-    "approach",
-    "performance",
-    "improve",
-    "improvement",
-    "reduce",
-    "reduction",
-    "increase",
-    "predict",
-    "prediction",
-    "demonstrate",
-    "demonstrates",
-    "conclude",
-    "conclusion"
-  ];
+  sentences =
+    sentences.filter(function (sentence) {
 
-
-  // -------------------------------------------------------
-  // Score sentences
-  // -------------------------------------------------------
-
-  function sentenceScore(sentence, index) {
-
-    const lower =
-      sentence.toLowerCase();
-
-    let score = 0;
-
-
-    // Important scientific words.
-    importantTerms.forEach(function (term) {
-
-      if (
-        new RegExp(
-          "\\b" +
-          term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") +
-          "\\b",
-          "i"
-        ).test(lower)
-      ) {
-        score += 2;
-      }
+      return sentence.length >= 35;
     });
 
 
-    // First sentence usually gives the problem.
-    if (index === 0) {
-      score += 5;
-    }
-
-
-    // Second sentence often gives the approach.
-    if (index === 1) {
-      score += 3;
-    }
-
-
-    // Later sentences are often results.
-    if (index >= 2) {
-      if (
-        /\b(results?|find|found|show|shows|demonstrate|demonstrates|conclude|conclusion)\b/i
-          .test(lower)
-      ) {
-        score += 5;
-      }
-    }
-
-
-    // Sentences with "we" often describe what researchers did.
-    if (/\bwe\b/i.test(lower)) {
-      score += 2;
-    }
-
-
-    // Prefer readable sentence lengths.
-    if (sentence.length < 220) {
-      score += 3;
-    }
-
-    if (sentence.length > 400) {
-      score -= 3;
-    }
-
-
-    // Penalize sentences that are mostly setup.
-    if (
-      /\bhowever\b|\balthough\b|\bwhile\b/i.test(lower)
-    ) {
-      score -= 1;
-    }
-
-
-    return score;
+  if (!sentences.length) {
+    return simplifySentence(text);
   }
 
 
-  // -------------------------------------------------------
-  // Rank sentences
-  // -------------------------------------------------------
+  // Score sentences.
 
   const ranked =
     sentences
@@ -711,65 +804,186 @@ function simplifyWithCompromise(text) {
         return {
           sentence: sentence,
           index: index,
-          score: sentenceScore(
+          score: scoreSentence(
             sentence,
-            index
+            index,
+            sentences.length
           )
         };
-
       })
       .sort(function (a, b) {
 
         return b.score - a.score;
-
       });
 
 
   // -------------------------------------------------------
-  // Select sentences
+  // Select useful sentences.
+  //
+  // We don't want four random sentences.
+  // We want a mixture of:
+  //
+  // problem
+  // method
+  // result
+  // importance
   // -------------------------------------------------------
 
-  let selected =
-    ranked
-      .slice(0, Math.min(4, ranked.length))
-      .sort(function (a, b) {
-        return a.index - b.index;
+  const selected = [];
+
+
+  function addBest(predicate) {
+
+    const match =
+      ranked.find(function (item) {
+
+        return (
+          !selected.some(function (chosen) {
+            return chosen.index === item.index;
+          }) &&
+          predicate(
+            item.sentence.toLowerCase()
+          )
+        );
       });
 
 
-  // -------------------------------------------------------
-  // Simplify selected sentences
-  // -------------------------------------------------------
+    if (match) {
+      selected.push(match);
+    }
+  }
 
-  let result =
+
+  // Problem.
+
+  addBest(function (text) {
+
+    return (
+      text.includes("problem") ||
+      text.includes("challenge") ||
+      text.includes("difficult") ||
+      text.includes("difficulty") ||
+      text.includes("limited") ||
+      text.includes("lack") ||
+      text.includes("avoid") ||
+      text.includes("cannot") ||
+      text.includes("hard")
+    );
+  });
+
+
+  // Method.
+
+  addBest(function (text) {
+
+    return (
+      text.includes("we propose") ||
+      text.includes("we present") ||
+      text.includes("we introduce") ||
+      text.includes("we develop") ||
+      text.includes("we use") ||
+      text.includes("we apply") ||
+      text.includes("method") ||
+      text.includes("approach") ||
+      text.includes("model") ||
+      text.includes("system")
+    );
+  });
+
+
+  // Results.
+
+  addBest(function (text) {
+
+    return (
+      text.includes("result") ||
+      text.includes("results") ||
+      text.includes("find") ||
+      text.includes("show") ||
+      text.includes("demonstrate") ||
+      text.includes("improve") ||
+      text.includes("increase") ||
+      text.includes("reduce")
+    );
+  });
+
+
+  // Fill remaining slots.
+
+  ranked.forEach(function (item) {
+
+    if (selected.length >= 4) {
+      return;
+    }
+
+
+    const exists =
+      selected.some(function (chosen) {
+
+        return chosen.index === item.index;
+      });
+
+
+    if (!exists) {
+      selected.push(item);
+    }
+  });
+
+
+  // Restore original order.
+
+  selected.sort(function (a, b) {
+
+    return a.index - b.index;
+  });
+
+
+  // Simplify.
+
+  let simplified =
     selected
+      .slice(0, 4)
       .map(function (item) {
+
         return simplifySentence(
           item.sentence
         );
       })
-      .join(" ");
+      .filter(Boolean);
 
 
-  // -------------------------------------------------------
-  // Additional cleanup
-  // -------------------------------------------------------
+  // Remove duplicates.
 
-  result = result
-    .replace(/\s+/g, " ")
-    .replace(/\s+([,.!?])/g, "$1")
-    .trim();
+  simplified =
+    removeDuplicateSentences(
+      simplified
+    );
 
 
-  // Limit to roughly 110 words.
+  let result =
+    simplified.join(" ");
+
+
+  // Final cleanup.
+
+  result =
+    result
+      .replace(/\s+/g, " ")
+      .replace(/\s+([,.!?])/g, "$1")
+      .trim();
+
+
+  // Maximum length.
+
   const words =
     result.split(/\s+/);
 
-  if (words.length > 110) {
+
+  if (words.length > 115) {
 
     result =
       words
-        .slice(0, 105)
+        .slice(0, 110)
         .join(" ") +
       "…";
   }
@@ -780,7 +994,585 @@ function simplifyWithCompromise(text) {
 
 
 // =========================================================
-// Vocabulary and phrase simplification
+// SENTENCE SPLITTING
+// =========================================================
+
+function splitIntoSentences(text) {
+
+  // Use Compromise if available.
+
+  if (typeof nlp === "function") {
+
+    try {
+
+      const doc = nlp(text);
+
+      const sentences =
+        doc
+          .sentences()
+          .out("array")
+          .map(function (sentence) {
+
+            return sentence
+              .replace(/\s+/g, " ")
+              .trim();
+          });
+
+
+      if (sentences.length) {
+        return sentences;
+      }
+
+    } catch (error) {
+
+      console.warn(
+        "Compromise failed. Using fallback sentence splitter.",
+        error
+      );
+    }
+  }
+
+
+  // -------------------------------------------------------
+  // Fallback.
+  //
+  // This means your simplifier still works even if the
+  // Compromise CDN is blocked.
+  // -------------------------------------------------------
+
+  return text
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(/(?<=[.!?])\s+(?=[A-Z])/)
+    .map(function (sentence) {
+
+      return sentence.trim();
+    })
+    .filter(Boolean);
+}
+
+
+// =========================================================
+// SENTENCE SCORING
+// =========================================================
+
+function scoreSentence(sentence, index, total) {
+
+  const lower =
+    sentence.toLowerCase();
+
+
+  let score = 0;
+
+
+  // First sentence usually contains background/problem.
+
+  if (index === 0) {
+    score += 5;
+  }
+
+
+  if (index === 1) {
+    score += 2;
+  }
+
+
+  // Useful research words.
+
+  const importantTerms = [
+
+    "problem",
+    "challenge",
+    "difficult",
+    "difficulty",
+    "limited",
+    "limit",
+    "avoid",
+    "lack",
+    "cannot",
+    "unable",
+
+    "we propose",
+    "we present",
+    "we introduce",
+    "we develop",
+    "we use",
+    "we apply",
+
+    "result",
+    "results",
+    "find",
+    "found",
+    "show",
+    "shows",
+    "demonstrate",
+    "improve",
+    "improvement",
+    "increase",
+    "reduce",
+    "performance",
+
+    "important",
+    "useful",
+    "benefit",
+    "potential"
+  ];
+
+
+  importantTerms.forEach(
+    function (term) {
+
+      if (lower.includes(term)) {
+        score += 2;
+      }
+    }
+  );
+
+
+  // "Here, we show..." is particularly useful.
+
+  if (
+    /\bhere,\s+we\s+(show|demonstrate|present)\b/i
+      .test(sentence)
+  ) {
+    score += 5;
+  }
+
+
+  // Shorter sentences are easier to simplify.
+
+  if (sentence.length < 220) {
+    score += 2;
+  }
+
+
+  if (sentence.length > 450) {
+    score -= 3;
+  }
+
+
+  // Prefer sentences that aren't simply references.
+
+  if (
+    /\b(as shown in|see also|according to)\b/i
+      .test(lower)
+  ) {
+    score -= 2;
+  }
+
+
+  return score;
+}
+
+
+// =========================================================
+// SCIENTIFIC DICTIONARY
+// =========================================================
+
+function applyScientificDictionary(text) {
+
+  // The dictionary is in scientific-dictionary.js.
+
+  if (
+    typeof SCIENTIFIC_DICTIONARY === "undefined" ||
+    !SCIENTIFIC_DICTIONARY
+  ) {
+
+    console.warn(
+      "scientific-dictionary.js was not loaded."
+    );
+
+    return text;
+  }
+
+
+  let result = text;
+
+
+  // Longer phrases MUST be replaced first.
+
+  const terms =
+    Object.keys(
+      SCIENTIFIC_DICTIONARY
+    )
+    .sort(function (a, b) {
+
+      return b.length - a.length;
+    });
+
+
+  terms.forEach(function (term) {
+
+    const replacement =
+      SCIENTIFIC_DICTIONARY[term];
+
+
+    const escaped =
+      term.replace(
+        /[.*+?^${}()|[\]\\]/g,
+        "\\$&"
+      );
+
+
+    const regex =
+      new RegExp(
+        "\\b" +
+        escaped +
+        "\\b",
+        "gi"
+      );
+
+
+    result =
+      result.replace(
+        regex,
+        replacement
+      );
+  });
+
+
+  return result;
+}
+
+
+// =========================================================
+// ACADEMIC PHRASE REWRITES
+// =========================================================
+//
+// These are separate from the dictionary because they
+// change the structure/meaning of a phrase rather than
+// simply replacing one scientific term.
+// =========================================================
+
+function simplifyAcademicPhrases(text) {
+
+  let result = text;
+
+
+  const replacements = [
+
+    // Research language.
+
+    [
+      /\bhere,\s+we\s+show\b/gi,
+      "this paper shows"
+    ],
+
+    [
+      /\bhere,\s+we\s+demonstrate\b/gi,
+      "this paper shows"
+    ],
+
+    [
+      /\bin this work,\s+we\b/gi,
+      "in this study, we"
+    ],
+
+    [
+      /\bin this paper,\s+we\b/gi,
+      "this paper"
+    ],
+
+    [
+      /\bwe investigate\b/gi,
+      "we study"
+    ],
+
+    [
+      /\bwe examine\b/gi,
+      "we study"
+    ],
+
+    [
+      /\bwe analyze\b/gi,
+      "we study"
+    ],
+
+    [
+      /\bwe analyse\b/gi,
+      "we study"
+    ],
+
+    [
+      /\bwe propose\b/gi,
+      "we suggest"
+    ],
+
+    [
+      /\bwe introduce\b/gi,
+      "we present"
+    ],
+
+    [
+      /\bwe develop\b/gi,
+      "we create"
+    ],
+
+    [
+      /\bwe demonstrate\b/gi,
+      "we show"
+    ],
+
+    [
+      /\bwe establish\b/gi,
+      "we show"
+    ],
+
+    [
+      /\bwe utilize\b/gi,
+      "we use"
+    ],
+
+
+    // Academic connectors.
+
+    [
+      /\bfurthermore\b/gi,
+      "also"
+    ],
+
+    [
+      /\bmoreover\b/gi,
+      "also"
+    ],
+
+    [
+      /\btherefore\b/gi,
+      "so"
+    ],
+
+    [
+      /\bconsequently\b/gi,
+      "so"
+    ],
+
+    [
+      /\bnevertheless\b/gi,
+      "however"
+    ],
+
+    [
+      /\bthus\b/gi,
+      "so"
+    ],
+
+    [
+      /\bhence\b/gi,
+      "so"
+    ],
+
+
+    // Long academic phrases.
+
+    [
+      /\bin order to\b/gi,
+      "to"
+    ],
+
+    [
+      /\bwith respect to\b/gi,
+      "about"
+    ],
+
+    [
+      /\bin the context of\b/gi,
+      "in"
+    ],
+
+    [
+      /\bin terms of\b/gi,
+      "for"
+    ],
+
+    [
+      /\bin accordance with\b/gi,
+      "following"
+    ],
+
+    [
+      /\bwith the aim of\b/gi,
+      "to"
+    ],
+
+    [
+      /\bfor the purpose of\b/gi,
+      "to"
+    ],
+
+    [
+      /\bprior to\b/gi,
+      "before"
+    ],
+
+    [
+      /\bsubsequently\b/gi,
+      "later"
+    ],
+
+    [
+      /\bapproximately\b/gi,
+      "about"
+    ],
+
+    [
+      /\ba large number of\b/gi,
+      "many"
+    ],
+
+    [
+      /\ba small number of\b/gi,
+      "few"
+    ],
+
+
+    // Research result phrases.
+
+    [
+      /\bour results demonstrate that\b/gi,
+      "our results show that"
+    ],
+
+    [
+      /\bour results indicate that\b/gi,
+      "our results show that"
+    ],
+
+    [
+      /\bthe results demonstrate that\b/gi,
+      "the results show that"
+    ],
+
+    [
+      /\bthe results indicate that\b/gi,
+      "the results show that"
+    ],
+
+    [
+      /\bthe findings suggest that\b/gi,
+      "the results suggest that"
+    ],
+
+    [
+      /\bthe findings demonstrate that\b/gi,
+      "the results show that"
+    ],
+
+
+    // Common scientific constructions.
+
+    [
+      /\bplays a crucial role\b/gi,
+      "is very important"
+    ],
+
+    [
+      /\bplays an important role\b/gi,
+      "is important"
+    ],
+
+    [
+      /\bplays a significant role\b/gi,
+      "is important"
+    ],
+
+    [
+      /\bhas the potential to\b/gi,
+      "could"
+    ],
+
+    [
+      /\bhas the ability to\b/gi,
+      "can"
+    ],
+
+    [
+      /\bin order for\b/gi,
+      "so that"
+    ],
+
+
+    // Specific transformations.
+
+    [
+      /\bfundamentally alters\b/gi,
+      "changes"
+    ],
+
+    [
+      /\bfundamentally change\b/gi,
+      "change"
+    ],
+
+    [
+      /\bfundamentally changes\b/gi,
+      "changes"
+    ],
+
+    [
+      /\bobscuring\b/gi,
+      "making it harder to see"
+    ],
+
+    [
+      /\bgenerating extreme sensitivity\b/gi,
+      "making the system very sensitive"
+    ],
+
+    [
+      /\bextreme sensitivity to\b/gi,
+      "strong sensitivity to"
+    ],
+
+    [
+      /\bcan be harnessed as key resources\b/gi,
+      "can actually be useful"
+    ],
+
+    [
+      /\bcan be harnessed\b/gi,
+      "can be used"
+    ],
+
+    [
+      /\bkey resources\b/gi,
+      "useful tools"
+    ],
+
+    [
+      /\bincorporating\b/gi,
+      "with"
+    ],
+
+    [
+      /\bconsisting of\b/gi,
+      "made of"
+    ],
+
+    [
+      /\bcomposed of\b/gi,
+      "made of"
+    ]
+  ];
+
+
+  replacements.forEach(
+    function (replacement) {
+
+      result =
+        result.replace(
+          replacement[0],
+          replacement[1]
+        );
+    }
+  );
+
+
+  return result;
+}
+
+
+// =========================================================
+// SIMPLIFY ONE SENTENCE
 // =========================================================
 
 function simplifySentence(sentence) {
@@ -788,177 +1580,253 @@ function simplifySentence(sentence) {
   let result = sentence;
 
 
-  // -------------------------------------------------------
-  // Research phrases
-  // -------------------------------------------------------
+  // Remove citation references.
 
-  const replacements = [
-
-    [/\bwe investigate\b/gi, "we study"],
-    [/\bwe examine\b/gi, "we study"],
-    [/\bwe analyze\b/gi, "we study"],
-    [/\bwe analyse\b/gi, "we study"],
-
-    [/\bwe propose\b/gi, "we suggest"],
-    [/\bwe introduce\b/gi, "we present"],
-    [/\bwe develop\b/gi, "we create"],
-    [/\bwe demonstrate\b/gi, "we show"],
-    [/\bwe establish\b/gi, "we show"],
-    [/\bwe utilize\b/gi, "we use"],
-
-    [/\bthis paper investigates\b/gi, "this paper studies"],
-    [/\bthis work investigates\b/gi, "this work studies"],
-    [/\bthis study investigates\b/gi, "this study looks at"],
-
-    [/\bthe authors investigate\b/gi, "the authors study"],
-    [/\bthe authors propose\b/gi, "the authors suggest"],
-    [/\bthe authors demonstrate\b/gi, "the authors show"],
+  result =
+    result.replace(
+      /\[[0-9,\-\s]+\]/g,
+      ""
+    );
 
 
-    // -----------------------------------------------------
-    // Academic vocabulary
-    // -----------------------------------------------------
+  // Remove excessive whitespace.
 
-    [/\butilize\b/gi, "use"],
-    [/\butilizes\b/gi, "uses"],
-    [/\butilized\b/gi, "used"],
-
-    [/\bmethodology\b/gi, "method"],
-    [/\bmethodologies\b/gi, "methods"],
-
-    [/\bframework\b/gi, "system"],
-    [/\bframeworks\b/gi, "systems"],
-
-    [/\bnovel\b/gi, "new"],
-    [/\binnovative\b/gi, "new"],
-
-    [/\bempirical\b/gi, "based on real data"],
-    [/\bquantitative\b/gi, "based on numbers"],
-    [/\bqualitative\b/gi, "based on descriptions"],
-
-    [/\bfeasible\b/gi, "possible"],
-    [/\brobust\b/gi, "reliable"],
-    [/\bcomplexity\b/gi, "difficulty"],
-    [/\bcomplex\b/gi, "complicated"],
-    [/\boptimal\b/gi, "best"],
-
-    [/\bapproximately\b/gi, "about"],
-    [/\bsubsequently\b/gi, "later"],
-    [/\bprior to\b/gi, "before"],
+  result =
+    result.replace(
+      /\s+/g,
+      " "
+    )
+    .trim();
 
 
-    // -----------------------------------------------------
-    // Long academic phrases
-    // -----------------------------------------------------
+  // Academic phrase transformations.
 
-    [/\bin order to\b/gi, "to"],
-    [/\bwith respect to\b/gi, "about"],
-    [/\bin the context of\b/gi, "in"],
-    [/\bin terms of\b/gi, "for"],
-    [/\bin accordance with\b/gi, "following"],
-    [/\bwith the aim of\b/gi, "to"],
-    [/\bfor the purpose of\b/gi, "to"],
-
-    [/\ba large number of\b/gi, "many"],
-    [/\ba small number of\b/gi, "few"],
-    [/\ba significant number of\b/gi, "many"],
-
-    [/\ba significant increase\b/gi, "a clear increase"],
-    [/\ba significant decrease\b/gi, "a clear decrease"],
+  result =
+    simplifyAcademicPhrases(
+      result
+    );
 
 
-    // -----------------------------------------------------
-    // Academic verbs
-    // -----------------------------------------------------
+  // Scientific dictionary.
 
-    [/\bmitigate\b/gi, "reduce"],
-    [/\bmitigates\b/gi, "reduces"],
-    [/\bmitigation\b/gi, "reduction"],
-
-    [/\bfacilitate\b/gi, "help"],
-    [/\bfacilitates\b/gi, "helps"],
-
-    [/\bimplement\b/gi, "use"],
-    [/\bimplements\b/gi, "uses"],
-    [/\bimplemented\b/gi, "used"],
-
-    [/\bderive\b/gi, "calculate"],
-    [/\bderives\b/gi, "calculates"],
-    [/\bderived\b/gi, "calculated"],
-
-    [/\bobtain\b/gi, "get"],
-    [/\bobtains\b/gi, "gets"],
-    [/\bobtained\b/gi, "got"],
+  result =
+    applyScientificDictionary(
+      result
+    );
 
 
-    // -----------------------------------------------------
-    // Results / conclusions
-    // -----------------------------------------------------
+  // More general simplifications.
 
-    [/\bfindings\b/gi, "results"],
-    [/\bimplications\b/gi, "meaning"],
-    [/\bapplications\b/gi, "uses"],
-    [/\bbeneficial\b/gi, "helpful"],
+  const generalReplacements = [
 
-    [/\bindicate\b/gi, "show"],
-    [/\bindicates\b/gi, "shows"],
-    [/\bindicated\b/gi, "showed"],
+    [
+      /\bnovel approach\b/gi,
+      "new method"
+    ],
 
-    [/\bsuggest\b/gi, "suggest"],
-    [/\bconsequently\b/gi, "so"],
+    [
+      /\bnovel method\b/gi,
+      "new method"
+    ],
 
+    [
+      /\bnovel framework\b/gi,
+      "new system"
+    ],
 
-    // -----------------------------------------------------
-    // Connectors
-    // -----------------------------------------------------
+    [
+      /\bstate-of-the-art\b/gi,
+      "very advanced"
+    ],
 
-    [/\bfurthermore\b/gi, "also"],
-    [/\bmoreover\b/gi, "also"],
-    [/\btherefore\b/gi, "so"],
-    [/\bnevertheless\b/gi, "however"],
-    [/\bthus\b/gi, "so"],
-    [/\bhence\b/gi, "so"]
+    [
+      /\bhighly accurate\b/gi,
+      "very accurate"
+    ],
+
+    [
+      /\bconsiderably\b/gi,
+      "a lot"
+    ],
+
+    [
+      /\bsignificantly\b/gi,
+      "clearly"
+    ],
+
+    [
+      /\bsubstantial\b/gi,
+      "large"
+    ],
+
+    [
+      /\bprior work\b/gi,
+      "earlier research"
+    ],
+
+    [
+      /\bexisting approaches\b/gi,
+      "current methods"
+    ],
+
+    [
+      /\bexisting methods\b/gi,
+      "current methods"
+    ],
+
+    [
+      /\bunderlying\b/gi,
+      "basic"
+    ],
+
+    [
+      /\bcorresponding\b/gi,
+      "matching"
+    ],
+
+    [
+      /\brespectively\b/gi,
+      "in the same order"
+    ]
   ];
 
 
-  replacements.forEach(function (replacement) {
+  generalReplacements.forEach(
+    function (replacement) {
+
+      result =
+        result.replace(
+          replacement[0],
+          replacement[1]
+        );
+    }
+  );
+
+
+  // Cleanup.
+
+  result =
+    result
+      .replace(/\s+/g, " ")
+      .replace(/\s+([,.!?])/g, "$1")
+      .trim();
+
+
+  // Capitalize.
+
+  if (result.length > 0) {
 
     result =
-      result.replace(
-        replacement[0],
-        replacement[1]
-      );
-
-  });
-
-
-  // -------------------------------------------------------
-  // Compromise-assisted cleanup
-  // -------------------------------------------------------
-
-  try {
-
-    const doc = nlp(result);
-
-    // Remove repeated spaces.
-    result =
-      doc.text()
-        .replace(/\s+/g, " ")
-        .trim();
-
-  } catch (e) {
-    // If Compromise fails, keep the existing result.
+      result.charAt(0).toUpperCase() +
+      result.slice(1);
   }
 
 
-  return result
-    .replace(/\s+([,.!?])/g, "$1")
-    .trim();
+  return result;
 }
 
 
 // =========================================================
-// Events
+// REMOVE DUPLICATE SENTENCES
+// =========================================================
+
+function removeDuplicateSentences(sentences) {
+
+  const result = [];
+
+
+  sentences.forEach(function (sentence) {
+
+    const normalized =
+      sentence
+        .toLowerCase()
+        .replace(
+          /[^a-z0-9 ]/g,
+          ""
+        )
+        .trim();
+
+
+    const duplicate =
+      result.some(
+        function (existing) {
+
+          return (
+            textSimilarity(
+              normalized,
+              existing
+            ) > 0.70
+          );
+        }
+      );
+
+
+    if (!duplicate) {
+
+      result.push(
+        sentence
+      );
+    }
+  });
+
+
+  return result;
+}
+
+
+// =========================================================
+// TEXT SIMILARITY
+// =========================================================
+
+function textSimilarity(a, b) {
+
+  const wordsA =
+    new Set(
+      a
+        .split(/\s+/)
+        .filter(Boolean)
+    );
+
+
+  const wordsB =
+    new Set(
+      b
+        .split(/\s+/)
+        .filter(Boolean)
+    );
+
+
+  if (
+    !wordsA.size ||
+    !wordsB.size
+  ) {
+    return 0;
+  }
+
+
+  let common = 0;
+
+
+  wordsA.forEach(function (word) {
+
+    if (wordsB.has(word)) {
+      common++;
+    }
+  });
+
+
+  return (
+    common /
+    Math.max(
+      wordsA.size,
+      wordsB.size
+    )
+  );
+}
+
+
+// =========================================================
+// EVENTS
 // =========================================================
 
 if (categorySelect) {
@@ -971,7 +1839,6 @@ if (categorySelect) {
         categorySelect.value,
         false
       );
-
     }
   );
 }
@@ -986,7 +1853,6 @@ if (searchBtn) {
       lastIsAll = false;
 
       runSearch(0);
-
     }
   );
 }
@@ -1001,7 +1867,6 @@ if (searchAllBtn) {
       lastIsAll = true;
 
       runSearch(0);
-
     }
   );
 }
@@ -1011,16 +1876,14 @@ if (keywordInput) {
 
   keywordInput.addEventListener(
     "keydown",
-    function (e) {
+    function (event) {
 
-      if (e.key === "Enter") {
+      if (event.key === "Enter") {
 
         lastIsAll = false;
 
         runSearch(0);
-
       }
-
     }
   );
 }
@@ -1032,14 +1895,14 @@ if (prevBtn) {
     "click",
     function () {
 
-      if (currentStart >= PAGE_SIZE) {
+      if (
+        currentStart >= PAGE_SIZE
+      ) {
 
         runSearch(
           currentStart - PAGE_SIZE
         );
-
       }
-
     }
   );
 }
@@ -1054,7 +1917,6 @@ if (nextBtn) {
       runSearch(
         currentStart + PAGE_SIZE
       );
-
     }
   );
 }
@@ -1070,7 +1932,6 @@ if (randomPaperBtn) {
         categorySelect.value,
         true
       );
-
     }
   );
 }
@@ -1086,7 +1947,7 @@ if (summarizeBtn) {
 
 
 // =========================================================
-// Start
+// START
 // =========================================================
 
 if (categorySelect) {
@@ -1095,5 +1956,4 @@ if (categorySelect) {
     categorySelect.value,
     false
   );
-
 }
