@@ -292,9 +292,9 @@
           <label for="category-select">Category</label>
           <select id="category-select">
             <option value="Books_of_the_Hebrew_Bible">Hebrew Bible Books</option>
-            <option value="Classic_novels">Classic Novels</option>
+            <option value="Gothic_novels">Gothic Novels</option>
             <option value="Philosophy_books">Philosophy Books</option>
-            <option value="Poetry">Poetry Books</option>
+            <option value="Poetry_collections">Poetry Collections</option>
             <option value="British_novels">British Novels</option>
             <option value="American_novels">American Novels</option>
           </select>
@@ -426,23 +426,71 @@
       return data.parse?.text?.['*'] || '';
     }
 
-    // ---------- Get books from Wikipedia category ----------
-    async function fetchCategoryPages(category) {
-      const url = `https://en.wikipedia.org/w/api.php?action=query&list=categorymembers&cmtitle=Category:${encodeURIComponent(category)}&cmlimit=500&format=json&origin=*`;
+    // ---------- Get books from a Wikipedia category (with subcategory fallback) ----------
+    // Many Wikipedia categories (e.g. "Books of the Hebrew Bible", "British novels") are
+    // "container categories": they only hold subcategories, no article pages directly.
+    // If the chosen category doesn't have enough direct pages, we walk into its
+    // subcategories (breadth-first, capped) until we find real book articles.
+    async function fetchCategoryMembers(categoryTitle, cmtype) {
+      const url = `https://en.wikipedia.org/w/api.php?action=query&list=categorymembers&cmtitle=Category:${encodeURIComponent(categoryTitle)}&cmlimit=500&cmtype=${cmtype}&format=json&origin=*`;
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      
-      // Filter to only pages (not subcategories)
-      const pages = data.query?.categorymembers || [];
-      return pages
-        .filter(p => p.ns === 0) // Only main namespace (articles)
-        .map(p => p.title)
-        .filter(title => {
-          // Filter out non-book pages
-          const exclude = ['List of', 'Bibliography', 'References', 'External links', 'See also'];
-          return !exclude.some(term => title.includes(term));
-        });
+      return data.query?.categorymembers || [];
+    }
+
+    function isLikelyBookTitle(title) {
+      const exclude = ['List of', 'Bibliography', 'Index of', 'Outline of', '(disambiguation)'];
+      return !exclude.some(term => title.includes(term));
+    }
+
+    async function fetchCategoryPages(category) {
+      const MIN_PAGES = 15;          // stop expanding once we have at least this many
+      const MAX_PAGES = 300;         // hard cap so we don't over-fetch
+      const MAX_DEPTH = 3;           // how many subcategory levels to walk into
+      const MAX_CATEGORY_FETCHES = 25; // cap total API calls for safety
+
+      const foundPages = new Map(); // title -> true (dedupe)
+      const visitedCats = new Set();
+      let queue = [{ name: category, depth: 0 }];
+      let categoryFetches = 0;
+
+      while (queue.length && foundPages.size < MAX_PAGES && categoryFetches < MAX_CATEGORY_FETCHES) {
+        const { name, depth } = queue.shift();
+        if (visitedCats.has(name)) continue;
+        visitedCats.add(name);
+
+        let pages = [];
+        try {
+          categoryFetches++;
+          pages = await fetchCategoryMembers(name, 'page');
+        } catch (e) {
+          console.log('Category page fetch failed:', name, e);
+        }
+
+        for (const p of pages) {
+          if (isLikelyBookTitle(p.title)) foundPages.set(p.title, true);
+        }
+
+        // If we still don't have enough books and haven't gone too deep, pull in subcategories
+        if (foundPages.size < MIN_PAGES && depth < MAX_DEPTH && categoryFetches < MAX_CATEGORY_FETCHES) {
+          let subcats = [];
+          try {
+            categoryFetches++;
+            subcats = await fetchCategoryMembers(name, 'subcat');
+          } catch (e) {
+            console.log('Subcategory fetch failed:', name, e);
+          }
+          for (const sc of subcats) {
+            const subName = sc.title.replace(/^Category:/, '');
+            if (!visitedCats.has(subName)) {
+              queue.push({ name: subName, depth: depth + 1 });
+            }
+          }
+        }
+      }
+
+      return Array.from(foundPages.keys());
     }
 
     // ---------- Extract plot from HTML ----------
@@ -625,7 +673,7 @@
       bookStatus.textContent = 'Loading books from category…';
 
       try {
-        // Fetch books from the category
+        // Fetch books from the category (recursing into subcategories if needed)
         const books = await fetchCategoryPages(category);
         if (!books || books.length === 0) {
           bookStatus.textContent = 'No books found in this category. Try another.';
@@ -633,11 +681,33 @@
         }
         
         categoryBooks = books;
-        const randomTitle = books[Math.floor(Math.random() * books.length)];
-        bookStatus.textContent = `Loading "${randomTitle}"…`;
-        
-        const book = await parseBookData(randomTitle);
-        showBook(book);
+
+        // Try a few random titles in case one fails to parse (e.g. a redirect
+        // or a page with an unusual layout) rather than giving up entirely.
+        const attempts = Math.min(5, books.length);
+        const tried = new Set();
+        let lastError = null;
+
+        for (let i = 0; i < attempts; i++) {
+          let randomTitle;
+          do {
+            randomTitle = books[Math.floor(Math.random() * books.length)];
+          } while (tried.has(randomTitle) && tried.size < books.length);
+          tried.add(randomTitle);
+
+          bookStatus.textContent = `Loading "${randomTitle}"…`;
+          try {
+            const book = await parseBookData(randomTitle);
+            showBook(book);
+            return;
+          } catch (err) {
+            console.log('Could not load book, trying another:', randomTitle, err);
+            lastError = err;
+          }
+        }
+
+        bookStatus.textContent = 'Could not load a book from this category. Please try again.';
+        console.error('All attempts failed:', lastError);
       } catch (err) {
         console.error('Error loading category:', err);
         bookStatus.textContent = `Error loading category. Please try again.`;
