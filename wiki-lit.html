@@ -200,6 +200,16 @@
       position: sticky;
       top: 1.25rem;
     }
+    .book-image {
+      display: block;
+      width: 100%;
+      height: auto;
+      max-height: 320px;
+      object-fit: cover;
+      border: 1px solid var(--border);
+      margin-bottom: 1rem;
+      background: var(--bg-alt);
+    }
     .info-label {
       font-family: "IBM Plex Mono", monospace;
       font-size: 0.7rem;
@@ -291,13 +301,11 @@
         <div class="control-group">
           <label for="category-select">Category</label>
           <select id="category-select">
-            <option value="Books_of_the_Hebrew_Bible">Hebrew Bible Books</option>
-            <option value="New_Testament_books">New Testament Books</option>
-            <option value="Gothic_novels">Gothic Novels</option>
-            <option value="Philosophy_books">Philosophy Books</option>
-            <option value="Poetry_collections">Poetry Collections</option>
-            <option value="British_novels">British Novels</option>
-            <option value="American_novels">American Novels</option>
+            <option value="Books_of_the_Bible">Bible Related Books</option>
+            <option value="French_novels">French Classics</option>
+            <option value="English_novels">English Novels</option>
+            <option value="Ancient_Greek_philosophical_literature">Classical Philosophy</option>
+            <option value="Modern_philosophical_literature">Modern Philosophy</option>
           </select>
         </div>
         <div class="control-group search-group">
@@ -345,6 +353,7 @@
           </div>
 
           <aside class="info-panel">
+            <img id="book-image" class="book-image" hidden alt="">
             <span class="info-label">📋 Book Info</span>
             <div id="info-content">
               <div class="info-row"><span class="info-label-text">Author</span><span class="info-value" id="info-author">—</span></div>
@@ -395,7 +404,7 @@
 
     let currentStart = 0;
     const PAGE_SIZE = 10;
-    let currentCategory = 'Books_of_the_Hebrew_Bible';
+    let currentCategory = 'Books_of_the_Bible';
     let categoryBooks = [];
 
     // Cache of category -> title list, so switching back to a category (or
@@ -440,12 +449,42 @@
     // A missing/failed Wikiquote page (most books don't have one) is expected
     // and non-fatal — it just means no quote is shown.
     async function fetchWikiquoteHTML(title) {
+      const direct = await fetchWikiquotePageHTML(title);
+      if (direct) return { html: direct, pageTitle: title };
+
+      // Exact title match failed (missing page, or it was a disambiguation
+      // page). Fall back to Wikiquote's own search — e.g. the Wikipedia
+      // article "Frankenstein" maps to the Wikiquote page "Frankenstein (novel)".
       try {
-        const url = `https://en.wikiquote.org/w/api.php?action=parse&page=${encodeURIComponent(title)}&format=json&origin=*`;
+        const searchUrl = `https://en.wikiquote.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(title)}&srlimit=3&format=json&origin=*`;
+        const res = await fetch(searchUrl);
+        if (!res.ok) return null;
+        const data = await res.json();
+        const candidates = data.query?.search || [];
+        for (const candidate of candidates) {
+          const html = await fetchWikiquotePageHTML(candidate.title);
+          if (html) return { html, pageTitle: candidate.title };
+        }
+      } catch (e) {
+        // no-op — quote is optional
+      }
+      return null;
+    }
+
+    async function fetchWikiquotePageHTML(title) {
+      try {
+        const url = `https://en.wikiquote.org/w/api.php?action=parse&page=${encodeURIComponent(title)}&prop=text%7Ccategories&format=json&origin=*`;
         const res = await fetch(url);
         if (!res.ok) return '';
         const data = await res.json();
         if (data.error) return '';
+
+        // Skip disambiguation pages ("Frankenstein" -> novel vs film vs ...) —
+        // their bullet lists aren't quotes, they're just a list of links.
+        const categories = data.parse?.categories || [];
+        const isDisambiguation = categories.some(c => /disambiguation/i.test(c['*'] || ''));
+        if (isDisambiguation) return '';
+
         return data.parse?.text?.['*'] || '';
       } catch (e) {
         return '';
@@ -456,16 +495,21 @@
     // are basically lists (<ul><li>quote text<ul><li>source/date</li></ul></li></ul>),
     // often starting right after the intro, sometimes under headings like
     // "Quotes". We stop looking once we hit boilerplate sections.
+    //
+    // NOTE: the parsed HTML from action=parse wraps everything in a single
+    // <div class="mw-parser-output"> — headings and lists are children of
+    // *that* div, not of <body> directly, so we need to walk its children.
     function extractQuoteFromHTML(html) {
       if (!html) return '';
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, 'text/html');
 
-      const stopHeadings = ['external links', 'see also', 'sources', 'about', 'notes', 'references'];
-      const body = doc.body;
-      if (!body) return '';
+      const container = doc.querySelector('.mw-parser-output') || doc.body;
+      if (!container) return '';
 
-      for (const node of Array.from(body.children)) {
+      const stopHeadings = ['external links', 'see also', 'sources', 'about', 'notes', 'references'];
+
+      for (const node of Array.from(container.children)) {
         const tag = node.tagName;
         if (tag === 'H2' || tag === 'H3') {
           const heading = node.textContent.toLowerCase().trim();
@@ -675,7 +719,7 @@
 
       const extract = summaryResult.value.extract || 'No summary available.';
       const html = htmlResult.status === 'fulfilled' ? htmlResult.value : '';
-      const quoteHtml = quoteHtmlResult.status === 'fulfilled' ? quoteHtmlResult.value : '';
+      const quoteResult = quoteHtmlResult.status === 'fulfilled' ? quoteHtmlResult.value : null;
 
       // Extract plot from HTML
       let plot = '';
@@ -694,7 +738,14 @@
       }
       
       const info = html ? extractInfoFromHTML(html) : {};
-      const quote = quoteHtml ? extractQuoteFromHTML(quoteHtml) : '';
+      const quote = quoteResult ? extractQuoteFromHTML(quoteResult.html) : '';
+
+      // The REST summary endpoint already includes a lead image when the
+      // article has one (usually a cover, portrait, or manuscript image
+      // pulled from Wikimedia Commons) — no extra request needed.
+      const image = summaryResult.value.thumbnail?.source
+        || summaryResult.value.originalimage?.source
+        || '';
       
       return {
         title: title,
@@ -702,13 +753,14 @@
         summary: extract,
         plot: plot,
         quote: quote,
+        image: image,
         published: info.published || '',
         genre: info.genre || '',
         pages: info.pages || '',
         language: info.language || 'English',
         related: info.related || '',
         url: `https://en.wikipedia.org/wiki/${encodeURIComponent(title)}`,
-        quoteUrl: quote ? `https://en.wikiquote.org/wiki/${encodeURIComponent(title)}` : '',
+        quoteUrl: quote ? `https://en.wikiquote.org/wiki/${encodeURIComponent(quoteResult.pageTitle)}` : '',
         born: info.born || '',
         died: info.died || ''
       };
@@ -725,6 +777,17 @@
       document.getElementById('book-genre').textContent = book.genre || '';
       document.getElementById('book-title').textContent = book.title || '';
       document.getElementById('book-author').textContent = 'by ' + (book.author || 'Unknown');
+
+      const bookImage = document.getElementById('book-image');
+      if (book.image) {
+        bookImage.src = book.image;
+        bookImage.alt = book.title || '';
+        bookImage.hidden = false;
+        bookImage.onerror = function() { bookImage.hidden = true; };
+      } else {
+        bookImage.removeAttribute('src');
+        bookImage.hidden = true;
+      }
       document.getElementById('book-summary').textContent = book.summary || 'No summary available.';
       document.getElementById('book-plot').textContent = book.plot || 'No plot summary available.';
 
@@ -894,7 +957,7 @@
     });
 
     // ---------- Start ----------
-    loadRandomBook('Books_of_the_Hebrew_Bible');
+    loadRandomBook('Books_of_the_Bible');
   </script>
 </body>
 </html>
