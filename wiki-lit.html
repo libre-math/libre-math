@@ -292,6 +292,7 @@
           <label for="category-select">Category</label>
           <select id="category-select">
             <option value="Books_of_the_Hebrew_Bible">Hebrew Bible Books</option>
+            <option value="New_Testament_books">New Testament Books</option>
             <option value="Gothic_novels">Gothic Novels</option>
             <option value="Philosophy_books">Philosophy Books</option>
             <option value="Poetry_collections">Poetry Collections</option>
@@ -330,6 +331,11 @@
             <div class="book-section">
               <span class="book-section-label">📜 Plot / Content</span>
               <div id="book-plot" class="book-text"></div>
+            </div>
+
+            <div class="book-section" id="book-quote-section" hidden>
+              <span class="book-section-label">💬 Quote</span>
+              <div id="book-quote" class="book-text"></div>
             </div>
             
             <div class="book-actions">
@@ -392,6 +398,10 @@
     let currentCategory = 'Books_of_the_Hebrew_Bible';
     let categoryBooks = [];
 
+    // Cache of category -> title list, so switching back to a category (or
+    // hitting "Random book" again) is instant instead of re-crawling Wikipedia.
+    const categoryCache = new Map();
+
     // ---------- Theme ----------
     function applyTheme(theme) {
       document.documentElement.setAttribute('data-theme', theme);
@@ -426,6 +436,56 @@
       return data.parse?.text?.['*'] || '';
     }
 
+    // Wikiquote uses the same MediaWiki API shape on a different domain.
+    // A missing/failed Wikiquote page (most books don't have one) is expected
+    // and non-fatal — it just means no quote is shown.
+    async function fetchWikiquoteHTML(title) {
+      try {
+        const url = `https://en.wikiquote.org/w/api.php?action=parse&page=${encodeURIComponent(title)}&format=json&origin=*`;
+        const res = await fetch(url);
+        if (!res.ok) return '';
+        const data = await res.json();
+        if (data.error) return '';
+        return data.parse?.text?.['*'] || '';
+      } catch (e) {
+        return '';
+      }
+    }
+
+    // Pull the first genuine quote out of a Wikiquote page. Wikiquote pages
+    // are basically lists (<ul><li>quote text<ul><li>source/date</li></ul></li></ul>),
+    // often starting right after the intro, sometimes under headings like
+    // "Quotes". We stop looking once we hit boilerplate sections.
+    function extractQuoteFromHTML(html) {
+      if (!html) return '';
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+
+      const stopHeadings = ['external links', 'see also', 'sources', 'about', 'notes', 'references'];
+      const body = doc.body;
+      if (!body) return '';
+
+      for (const node of Array.from(body.children)) {
+        const tag = node.tagName;
+        if (tag === 'H2' || tag === 'H3') {
+          const heading = node.textContent.toLowerCase().trim();
+          if (stopHeadings.some(h => heading.includes(h))) break;
+          continue;
+        }
+        if (tag === 'UL') {
+          const firstItem = node.querySelector(':scope > li');
+          if (firstItem) {
+            const clone = firstItem.cloneNode(true);
+            const nestedList = clone.querySelector('ul, dl, ol');
+            if (nestedList) nestedList.remove();
+            const text = clone.textContent.replace(/\s+/g, ' ').trim();
+            if (text.length > 15 && text.length < 400) return text;
+          }
+        }
+      }
+      return '';
+    }
+
     // ---------- Get books from a Wikipedia category (with subcategory fallback) ----------
     // Many Wikipedia categories (e.g. "Books of the Hebrew Bible", "British novels") are
     // "container categories": they only hold subcategories, no article pages directly.
@@ -445,6 +505,15 @@
     }
 
     async function fetchCategoryPages(category) {
+      if (categoryCache.has(category)) {
+        return categoryCache.get(category);
+      }
+      const titles = await fetchCategoryPagesUncached(category);
+      categoryCache.set(category, titles);
+      return titles;
+    }
+
+    async function fetchCategoryPagesUncached(category) {
       const MIN_PAGES = 15;          // stop expanding once we have at least this many
       const MAX_PAGES = 300;         // hard cap so we don't over-fetch
       const MAX_DEPTH = 3;           // how many subcategory levels to walk into
@@ -589,17 +658,25 @@
     }
 
     // ---------- Parse book data ----------
-    async function parseBookData(title) {
-      const summaryData = await fetchWikipediaPage(title);
-      const extract = summaryData.extract || 'No summary available.';
-      
-      let html = '';
-      try {
-        html = await fetchWikipediaFull(title);
-      } catch(e) {
-        console.log('Could not fetch full page for plot:', e);
+    async function parseBookData(title, opts = {}) {
+      const includeQuote = opts.includeQuote !== false;
+
+      // Run all three lookups in parallel instead of one after another —
+      // total wait time becomes the slowest single call, not the sum of all three.
+      const [summaryResult, htmlResult, quoteHtmlResult] = await Promise.allSettled([
+        fetchWikipediaPage(title),
+        fetchWikipediaFull(title),
+        includeQuote ? fetchWikiquoteHTML(title) : Promise.resolve('')
+      ]);
+
+      if (summaryResult.status !== 'fulfilled') {
+        throw summaryResult.reason || new Error(`Failed to fetch summary for ${title}`);
       }
-      
+
+      const extract = summaryResult.value.extract || 'No summary available.';
+      const html = htmlResult.status === 'fulfilled' ? htmlResult.value : '';
+      const quoteHtml = quoteHtmlResult.status === 'fulfilled' ? quoteHtmlResult.value : '';
+
       // Extract plot from HTML
       let plot = '';
       if (html) {
@@ -617,18 +694,21 @@
       }
       
       const info = html ? extractInfoFromHTML(html) : {};
+      const quote = quoteHtml ? extractQuoteFromHTML(quoteHtml) : '';
       
       return {
         title: title,
         author: info.author || 'Unknown',
         summary: extract,
         plot: plot,
+        quote: quote,
         published: info.published || '',
         genre: info.genre || '',
         pages: info.pages || '',
         language: info.language || 'English',
         related: info.related || '',
         url: `https://en.wikipedia.org/wiki/${encodeURIComponent(title)}`,
+        quoteUrl: quote ? `https://en.wikiquote.org/wiki/${encodeURIComponent(title)}` : '',
         born: info.born || '',
         died: info.died || ''
       };
@@ -647,6 +727,14 @@
       document.getElementById('book-author').textContent = 'by ' + (book.author || 'Unknown');
       document.getElementById('book-summary').textContent = book.summary || 'No summary available.';
       document.getElementById('book-plot').textContent = book.plot || 'No plot summary available.';
+
+      const quoteSection = document.getElementById('book-quote-section');
+      if (book.quote) {
+        document.getElementById('book-quote').textContent = '“' + book.quote + '”';
+        quoteSection.hidden = false;
+      } else {
+        quoteSection.hidden = true;
+      }
 
       const wikiLink = document.getElementById('book-wiki-link');
       if (wikiLink) wikiLink.href = book.url || '#';
@@ -742,27 +830,35 @@
         resultsBox.innerHTML = '';
         // Show first 10 results
         const displayResults = results.slice(0, 10);
-        
-        for (let result of displayResults) {
-          try {
-            const book = await parseBookData(result.title);
-            const div = document.createElement('div');
-            div.className = 'result-item';
-            div.innerHTML = `
-              <div class="result-title">${escapeHtml(book.title)}</div>
-              <div class="result-meta">${escapeHtml(book.author)} · ${book.published || 'Date unknown'}</div>
-            `;
-            div.addEventListener('click', function() {
-              showBook(book);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            });
-            resultsBox.appendChild(div);
-          } catch(e) {
-            console.log('Skipping:', result.title);
+
+        // Fetch all previews in parallel — much faster than one at a time —
+        // then render in the original search-rank order.
+        const bookSettled = await Promise.allSettled(
+          displayResults.map(r => parseBookData(r.title, { includeQuote: false }))
+        );
+
+        let shown = 0;
+        bookSettled.forEach((result, i) => {
+          if (result.status !== 'fulfilled') {
+            console.log('Skipping:', displayResults[i].title);
+            return;
           }
-        }
+          const book = result.value;
+          const div = document.createElement('div');
+          div.className = 'result-item';
+          div.innerHTML = `
+            <div class="result-title">${escapeHtml(book.title)}</div>
+            <div class="result-meta">${escapeHtml(book.author)} · ${book.published || 'Date unknown'}</div>
+          `;
+          div.addEventListener('click', function() {
+            showBook(book);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          });
+          resultsBox.appendChild(div);
+          shown++;
+        });
         
-        resultsInfo.textContent = `${displayResults.length} results`;
+        resultsInfo.textContent = `${shown} results`;
         prevBtn.disabled = true;
         nextBtn.disabled = true;
       } catch (err) {
