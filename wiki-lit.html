@@ -259,30 +259,10 @@
       text-align: center;
       background: var(--header-bg);
     }
-    .summary-panel {
-      background: var(--bg-alt);
-      border: 1px solid var(--border);
-      padding: 1.1rem 1.15rem 1.25rem;
-      position: sticky;
-      top: 1.25rem;
-    }
-    .summary-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; gap: 0.5rem; }
-    .summary-label {
-      font-family: "IBM Plex Mono", monospace;
-      font-size: 0.7rem;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--accent);
-      font-weight: 500;
-    }
-    .summary-box { font-size: 0.95rem; line-height: 1.55; color: var(--text); }
-    .summary-placeholder { margin: 0; color: var(--text-muted); font-style: italic; font-size: 0.9rem; }
-    .summary-result { margin: 0; font-weight: 500; }
-    .summary-loading { color: var(--text-muted); font-family: "IBM Plex Mono", monospace; font-size: 0.82rem; }
 
     @media (max-width: 720px) {
       .book-layout { grid-template-columns: 1fr; }
-      .info-panel, .summary-panel { position: static; }
+      .info-panel { position: static; }
     }
     @media (max-width: 640px) {
       .report { border: none; box-shadow: none; }
@@ -311,9 +291,12 @@
         <div class="control-group">
           <label for="category-select">Category</label>
           <select id="category-select">
-            <option value="classic_novels">Classic Novels</option>
-            <option value="philosophy_books">Philosophy Books</option>
-            <option value="poetry_books">Poetry Books</option>
+            <option value="Books_of_the_Hebrew_Bible">Hebrew Bible Books</option>
+            <option value="Classic_novels">Classic Novels</option>
+            <option value="Philosophy_books">Philosophy Books</option>
+            <option value="Poetry">Poetry Books</option>
+            <option value="British_novels">British Novels</option>
+            <option value="American_novels">American Novels</option>
           </select>
         </div>
         <div class="control-group search-group">
@@ -345,7 +328,7 @@
             </div>
             
             <div class="book-section">
-              <span class="book-section-label">📜 Plot</span>
+              <span class="book-section-label">📜 Plot / Content</span>
               <div id="book-plot" class="book-text"></div>
             </div>
             
@@ -388,45 +371,8 @@
 
   <script>
     // =========================================================
-    // Libre Books — Wikipedia Literary Explorer
+    // Libre Books — Wikipedia Category Explorer
     // =========================================================
-
-    // Book lists by category
-    const BOOKS_BY_CATEGORY = {
-      classic_novels: [
-        'Moby-Dick', 'Pride and Prejudice', 'Jane Eyre', 'Wuthering Heights',
-        'Great Expectations', 'A Tale of Two Cities', 'Crime and Punishment',
-        'The Brothers Karamazov', 'War and Peace', 'Anna Karenina',
-        'Madame Bovary', 'Les Misérables', 'The Count of Monte Cristo',
-        'The Great Gatsby', 'To Kill a Mockingbird', '1984',
-        'Animal Farm', 'The Catcher in the Rye', 'One Hundred Years of Solitude',
-        'The Sound and the Fury', 'Ulysses', 'Mrs Dalloway',
-        'The Sun Also Rises', 'For Whom the Bell Tolls', 'The Old Man and the Sea',
-        'Middlemarch', 'David Copperfield', 'Oliver Twist',
-        'The Picture of Dorian Gray', 'Dracula', 'Frankenstein',
-        'The Strange Case of Dr Jekyll and Mr Hyde', 'The Time Machine',
-        'The War of the Worlds', 'Brave New World', 'Fahrenheit 451'
-      ],
-      philosophy_books: [
-        'Beyond Good and Evil', 'Thus Spoke Zarathustra', 'The Birth of Tragedy',
-        'Being and Time', 'The Phenomenology of Spirit', 'Critique of Pure Reason',
-        'The Republic', 'Nicomachean Ethics', 'Meditations', 'The Confessions',
-        'The Leviathan', 'The Social Contract', 'The Wealth of Nations',
-        'The Interpretation of Dreams', 'Civilization and Its Discontents',
-        'The Second Sex', 'The Gay Science', 'Human, All Too Human',
-        'A Treatise of Human Nature', 'An Enquiry Concerning Human Understanding',
-        'The Consolation of Philosophy', 'The City of God',
-        'The Prince', 'Utopia', 'Praise of Folly',
-        'Discourse on Method', 'Meditations on First Philosophy',
-        'The Spirit of the Laws', 'On Liberty', 'The Communist Manifesto'
-      ],
-      poetry_books: [
-        'The Divine Comedy', 'Paradise Lost', 'The Iliad', 'The Odyssey',
-        'The Aeneid', 'Beowulf', 'The Faerie Queene', 'Don Juan',
-        'The Rime of the Ancient Mariner', 'Leaves of Grass', 'The Waste Land',
-        'Howl', 'Ariel', 'The Cantos', 'The Canterbury Tales'
-      ]
-    };
 
     const categorySelect = document.getElementById('category-select');
     const keywordInput = document.getElementById('keyword-input');
@@ -443,7 +389,8 @@
 
     let currentStart = 0;
     const PAGE_SIZE = 10;
-    let currentCategory = 'classic_novels';
+    let currentCategory = 'Books_of_the_Hebrew_Bible';
+    let categoryBooks = [];
 
     // ---------- Theme ----------
     function applyTheme(theme) {
@@ -471,7 +418,6 @@
       return await res.json();
     }
 
-    // Fetch full page content to extract plot
     async function fetchWikipediaFull(title) {
       const url = `https://en.wikipedia.org/w/api.php?action=parse&page=${encodeURIComponent(title)}&format=json&origin=*`;
       const res = await fetch(url);
@@ -480,28 +426,42 @@
       return data.parse?.text?.['*'] || '';
     }
 
+    // ---------- Get books from Wikipedia category ----------
+    async function fetchCategoryPages(category) {
+      const url = `https://en.wikipedia.org/w/api.php?action=query&list=categorymembers&cmtitle=Category:${encodeURIComponent(category)}&cmlimit=500&format=json&origin=*`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      
+      // Filter to only pages (not subcategories)
+      const pages = data.query?.categorymembers || [];
+      return pages
+        .filter(p => p.ns === 0) // Only main namespace (articles)
+        .map(p => p.title)
+        .filter(title => {
+          // Filter out non-book pages
+          const exclude = ['List of', 'Bibliography', 'References', 'External links', 'See also'];
+          return !exclude.some(term => title.includes(term));
+        });
+    }
+
     // ---------- Extract plot from HTML ----------
-    function extractPlotFromHTML(html, title) {
+    function extractPlotFromHTML(html) {
       if (!html) return '';
 
-      // Create a DOM parser to parse the HTML
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, 'text/html');
       
-      // Look for plot sections with various headings
-      const plotKeywords = ['Plot', 'Synopsis', 'Story', 'Summary'];
+      const plotKeywords = ['Plot', 'Synopsis', 'Story', 'Summary', 'Content', 'Overview'];
       let plotText = '';
       
-      // Find all headings
       const headings = doc.querySelectorAll('h2, h3, h4');
       
       for (let heading of headings) {
         const text = heading.textContent.toLowerCase().trim();
-        // Check if this is a plot section
         const isPlot = plotKeywords.some(keyword => text.includes(keyword.toLowerCase()));
         
         if (isPlot) {
-          // Get all content after this heading until the next heading
           let current = heading.nextElementSibling;
           let content = '';
           
@@ -509,7 +469,6 @@
             if (current.tagName === 'P') {
               content += current.textContent + ' ';
             }
-            // Also check for paragraphs inside divs
             if (current.tagName === 'DIV') {
               const paragraphs = current.querySelectorAll('p');
               for (let p of paragraphs) {
@@ -526,35 +485,7 @@
         }
       }
       
-      // If no plot found, try the description from the summary
-      if (!plotText && title) {
-        // Use the summary as fallback but only first sentence or two
-        const summaryUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
-        try {
-          const res = await fetch(summaryUrl);
-          if (res.ok) {
-            const data = await res.json();
-            const extract = data.extract || '';
-            // Take first 2 sentences or 300 chars as plot
-            const sentences = extract.match(/[^.!?]+[.!?]+/g);
-            if (sentences) {
-              plotText = sentences.slice(0, 3).join(' ');
-            } else {
-              plotText = extract.slice(0, 400);
-            }
-          }
-        } catch(e) {}
-      }
-      
-      // Clean up
-      plotText = plotText.replace(/\s+/g, ' ').trim();
-      
-      // If still empty, provide a placeholder
-      if (!plotText) {
-        return 'No plot summary available for this book.';
-      }
-      
-      return plotText;
+      return plotText || '';
     }
 
     // ---------- Extract info from HTML ----------
@@ -574,12 +505,9 @@
       
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, 'text/html');
-      
-      // Find the infobox
       const infobox = doc.querySelector('.infobox');
       if (!infobox) return info;
       
-      // Extract data from infobox rows
       const rows = infobox.querySelectorAll('tr');
       
       for (let row of rows) {
@@ -614,11 +542,9 @@
 
     // ---------- Parse book data ----------
     async function parseBookData(title) {
-      // Get summary
       const summaryData = await fetchWikipediaPage(title);
       const extract = summaryData.extract || 'No summary available.';
       
-      // Get full HTML
       let html = '';
       try {
         html = await fetchWikipediaFull(title);
@@ -629,11 +555,11 @@
       // Extract plot from HTML
       let plot = '';
       if (html) {
-        plot = extractPlotFromHTML(html, title);
+        plot = extractPlotFromHTML(html);
       }
       
-      // If plot is empty, use a fallback
-      if (!plot || plot === 'No plot summary available for this book.' || plot === '') {
+      // If no plot found, use summary sentences
+      if (!plot) {
         const sentences = extract.match(/[^.!?]+[.!?]+/g);
         if (sentences && sentences.length > 1) {
           plot = sentences.slice(1, 4).join(' ');
@@ -642,7 +568,6 @@
         }
       }
       
-      // Extract info from HTML
       const info = html ? extractInfoFromHTML(html) : {};
       
       return {
@@ -678,7 +603,6 @@
       const wikiLink = document.getElementById('book-wiki-link');
       if (wikiLink) wikiLink.href = book.url || '#';
 
-      // Update info panel
       document.getElementById('info-author').textContent = book.author || '—';
       document.getElementById('info-born').textContent = book.born || '—';
       document.getElementById('info-died').textContent = book.died || '—';
@@ -693,22 +617,30 @@
       return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    // ---------- Load random book ----------
+    // ---------- Load random book from category ----------
     async function loadRandomBook(category) {
       bookStatus.hidden = false;
       bookContent.hidden = true;
       resultsSection.hidden = true;
-      bookStatus.textContent = 'Loading a random book…';
+      bookStatus.textContent = 'Loading books from category…';
 
-      const books = BOOKS_BY_CATEGORY[category] || BOOKS_BY_CATEGORY.classic_novels;
-      const randomTitle = books[Math.floor(Math.random() * books.length)];
-      
       try {
+        // Fetch books from the category
+        const books = await fetchCategoryPages(category);
+        if (!books || books.length === 0) {
+          bookStatus.textContent = 'No books found in this category. Try another.';
+          return;
+        }
+        
+        categoryBooks = books;
+        const randomTitle = books[Math.floor(Math.random() * books.length)];
+        bookStatus.textContent = `Loading "${randomTitle}"…`;
+        
         const book = await parseBookData(randomTitle);
         showBook(book);
       } catch (err) {
-        console.error('Error loading book:', err);
-        bookStatus.textContent = `Error loading "${randomTitle}". Please try again.`;
+        console.error('Error loading category:', err);
+        bookStatus.textContent = `Error loading category. Please try again.`;
       }
     }
 
@@ -725,32 +657,42 @@
       nextBtn.disabled = true;
 
       try {
-        // Search Wikipedia
-        const searchUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(keyword)}`;
+        // Use Wikipedia search API
+        const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(keyword)}&format=json&origin=*`;
         const res = await fetch(searchUrl);
+        if (!res.ok) throw new Error('Search failed');
+        const data = await res.json();
         
-        if (!res.ok) {
+        const results = data.query?.search || [];
+        if (results.length === 0) {
           resultsBox.innerHTML = `<div class="status" style="padding:1rem">No results found for "${keyword}"</div>`;
           return;
         }
-        
-        const data = await res.json();
-        const book = await parseBookData(data.title || keyword);
-        
+
         resultsBox.innerHTML = '';
-        const div = document.createElement('div');
-        div.className = 'result-item';
-        div.innerHTML = `
-          <div class="result-title">${escapeHtml(book.title)}</div>
-          <div class="result-meta">${escapeHtml(book.author)} · ${book.published || 'Date unknown'}</div>
-        `;
-        div.addEventListener('click', function() {
-          showBook(book);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        });
-        resultsBox.appendChild(div);
+        // Show first 10 results
+        const displayResults = results.slice(0, 10);
         
-        resultsInfo.textContent = '1 result';
+        for (let result of displayResults) {
+          try {
+            const book = await parseBookData(result.title);
+            const div = document.createElement('div');
+            div.className = 'result-item';
+            div.innerHTML = `
+              <div class="result-title">${escapeHtml(book.title)}</div>
+              <div class="result-meta">${escapeHtml(book.author)} · ${book.published || 'Date unknown'}</div>
+            `;
+            div.addEventListener('click', function() {
+              showBook(book);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+            resultsBox.appendChild(div);
+          } catch(e) {
+            console.log('Skipping:', result.title);
+          }
+        }
+        
+        resultsInfo.textContent = `${displayResults.length} results`;
         prevBtn.disabled = true;
         nextBtn.disabled = true;
       } catch (err) {
@@ -786,7 +728,7 @@
     });
 
     // ---------- Start ----------
-    loadRandomBook('classic_novels');
+    loadRandomBook('Books_of_the_Hebrew_Bible');
   </script>
 </body>
 </html>
