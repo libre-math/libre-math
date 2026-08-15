@@ -583,9 +583,8 @@ function escapeHtml(str) {
 // =========================================================
 
 function getCategoryQuery(category) {
-
+  // Special case already present
   if (category === "q-fin") {
-
     return (
       "(cat:q-fin.CP OR " +
       "cat:q-fin.MF OR " +
@@ -598,10 +597,31 @@ function getCategoryQuery(category) {
     );
   }
 
+  // Top-level archives that need a wildcard
+  const needsWildcard = new Set([
+    "physics",
+    "math",
+    "cs",
+    "q-bio",
+    "stat",
+    "eess",
+    "econ",
+    "nlin",
+    "astro-ph",   // optional but safer
+    "cond-mat"
+  ]);
 
+  if (needsWildcard.has(category)) {
+    // physics* works; math.* and cs.* are the conventional forms
+    if (category === "math" || category === "cs") {
+      return "cat:" + category + ".*";
+    }
+    return "cat:" + category + "*";
+  }
+
+  // Leaf categories (hep-th, quant-ph, cs.LG, …)
   return "cat:" + category;
 }
-
 
 // =========================================================
 // ARXIV FETCH
