@@ -1,0 +1,93 @@
+const SCIENTIFIC_DICTIONARY = {
+
+  // Physics / waves
+  "multipath": "many different paths",
+  "multipath environment": "system with many different paths",
+  "propagation": "movement",
+  "propagation path": "path that a wave travels",
+  "scattering": "bouncing",
+  "interference": "waves affecting each other",
+  "perturbation": "small change",
+  "perturbations": "small changes",
+  "nonlinear mechanism": "effect that makes the system harder to predict",
+  "nonlinear mechanisms": "effects that make the system harder to predict",
+  "nonlinear effects": "effects that make the system harder to predict",
+  "superposition principle": "rule that waves can be added together",
+
+  // Mathematics
+  "optimization": "finding the best solution",
+  "optimize": "find the best solution",
+  "optimal": "best",
+  "parameter": "value",
+  "parameters": "values",
+  "variable": "changing value",
+  "variables": "changing values",
+  "derivative": "rate of change",
+  "derivatives": "rates of change",
+  "gradient": "information about which direction improves the result",
+
+  // Computer science
+  "algorithm": "step-by-step method",
+  "algorithms": "step-by-step methods",
+  "computational": "done using a computer",
+  "implementation": "way something is built",
+  "implement": "build or use",
+  "implemented": "built or used",
+  "architecture": "design",
+  "framework": "system",
+  "frameworks": "systems",
+
+  // Research terminology
+  "methodology": "method",
+  "methodologies": "methods",
+  "novel": "new",
+  "empirical": "based on real data",
+  "quantitative": "based on numbers",
+  "qualitative": "based on descriptions",
+  "theoretical": "based on theory",
+  "robust": "reliable",
+  "feasible": "possible",
+  "complexity": "difficulty",
+
+  // Common academic verbs
+  "utilize": "use",
+  "utilizes": "uses",
+  "utilized": "used",
+  "demonstrate": "show",
+  "demonstrates": "shows",
+  "demonstrated": "showed",
+  "investigate": "study",
+  "investigates": "studies",
+  "analyze": "study",
+  "analyse": "study",
+  "evaluate": "test",
+  "evaluates": "tests",
+  "derive": "calculate",
+  "derived": "calculated",
+  "obtain": "get",
+  "obtained": "got",
+  "facilitate": "help",
+  "mitigate": "reduce",
+
+  // Academic connectors
+  "furthermore": "also",
+  "moreover": "also",
+  "therefore": "so",
+  "consequently": "so",
+  "nevertheless": "however",
+  "thus": "so",
+  "hence": "so",
+  "subsequently": "later",
+  "approximately": "about",
+
+  // Academic phrases
+  "in order to": "to",
+  "with respect to": "about",
+  "in the context of": "in",
+  "in terms of": "for",
+  "prior to": "before",
+  "a large number of": "many",
+  "a small number of": "few",
+  "with the aim of": "to",
+  "for the purpose of": "to"
+};
