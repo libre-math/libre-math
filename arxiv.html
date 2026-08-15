@@ -8,113 +8,385 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&display=swap"
+    rel="stylesheet"
+  >
 
   <link rel="stylesheet" href="arxiv.css">
 </head>
+
 <body>
 
-  <a class="skip-link" href="#main-content">Skip to content</a>
+<a class="skip-link" href="#main-content">Skip to content</a>
 
-  <div class="report">
-    <!-- Report header -->
-    <header class="report-header">
-      <div class="report-header-left">
-        <div class="report-agency">LIBRE MATH · TECHNICAL MEMORANDUM</div>
-        <h1 class="report-title">arXiv Papers</h1>
+<div class="report">
+
+  <!-- =====================================================
+       HEADER
+       ===================================================== -->
+
+  <header class="report-header">
+
+    <div class="report-header-left">
+      <div class="report-agency">
+        LIBRE MATH · TECHNICAL MEMORANDUM
       </div>
-      <div class="report-header-right">
-        <button id="theme-toggle" class="btn" aria-label="Toggle theme">Dark</button>
-        <a href="index.html" class="btn btn-outline">← Home</a>
-      </div>
-    </header>
 
-    <main id="main-content" class="report-body">
-
-      <!-- Controls -->
-      <section class="controls">
-        <div class="control-group">
-          <label for="category-select">Category</label>
-          <select id="category-select">
-            <option value="astro-ph">astro-ph — Astrophysics</option>
-            <option value="q-fin">q-fin — Quantitative Finance</option>
-            <option value="q-fin.PM">q-fin.PM — Portfolio Management</option>
-            <option value="eess.SP">eess.SP — Signal Processing</option>
-            <option value="cs.AI">cs.AI — Artificial Intelligence</option>
-            <option value="cs.CC">cs.CC — Computational Complexity</option>
-          </select>
-        </div>
-
-        <div class="control-group search-group">
-          <label for="keyword-input">Keyword search (title only)</label>
-          <div class="search-row">
-            <input type="text" id="keyword-input" placeholder="e.g. black hole, portfolio, transformer…" autocomplete="off">
-            <button id="search-btn" class="btn">Search</button>
-            <button id="search-all-btn" class="btn btn-outline" title="Search across all listed categories">Search all</button>
-          </div>
-        </div>
-      </section>
-
-      <hr class="rule">
-
-     <!-- Main paper view -->
-<section id="paper-view" class="paper-view">
-  <div id="paper-status" class="status">Loading newest paper…</div>
-
-  <div id="paper-content" class="paper-layout" hidden>
-    <!-- LEFT: the paper -->
-    <div class="paper-main">
-      <div class="paper-meta">
-        <span id="paper-id" class="mono"></span>
-        <span id="paper-date" class="mono"></span>
-        <span id="paper-cats" class="mono"></span>
-      </div>
-      <h2 id="paper-title" class="paper-title"></h2>
-      <p id="paper-authors" class="paper-authors mono"></p>
-      <hr class="rule">
-      <div id="paper-abstract" class="paper-abstract"></div>
-      <div class="paper-actions">
-        <a id="paper-abs-link" class="btn" target="_blank" rel="noopener">Abstract page</a>
-        <a id="paper-pdf-link" class="btn" target="_blank" rel="noopener">PDF</a>
-        <button id="random-paper-btn" class="btn">Random paper</button>
-      </div>
+      <h1 class="report-title">
+        arXiv Papers
+      </h1>
     </div>
 
-    <!-- RIGHT: short summary -->
-    <aside class="summary-panel">
-      <div class="summary-header">
-        <span class="summary-label">Quick take</span>
-        <button id="summarize-btn" class="btn btn-outline">Sum up</button>
-      </div>
-      <div id="summary-box" class="summary-box">
-        <p class="summary-placeholder">Click “Sum up” for a short, plain-English version of the abstract.</p>
-      </div>
-    </aside>
-  </div>
-</section>
+    <div class="report-header-right">
 
-      <!-- Search results -->
-      <section id="results-section" class="results-section" hidden>
-        <div class="results-header">
-          <h3>Search results</h3>
-          <div class="results-nav">
-            <button id="prev-btn" class="btn btn-outline" disabled>← Previous</button>
-            <span id="results-info" class="mono"></span>
-            <button id="next-btn" class="btn btn-outline" disabled>Next 10 →</button>
-          </div>
+      <button
+        id="theme-toggle"
+        class="btn"
+        aria-label="Toggle theme"
+      >
+        Dark
+      </button>
+
+      <a
+        href="index.html"
+        class="btn btn-outline"
+      >
+        ← Home
+      </a>
+
+    </div>
+
+  </header>
+
+
+  <main id="main-content" class="report-body">
+
+    <!-- ===================================================
+         CONTROLS
+         =================================================== -->
+
+    <section class="controls">
+
+      <div class="control-group">
+
+        <label for="category-select">
+          Category
+        </label>
+
+        <select id="category-select">
+
+          <option value="astro-ph">
+            astro-ph — Astrophysics
+          </option>
+
+          <option value="q-fin">
+            q-fin — Quantitative Finance
+          </option>
+
+          <option value="q-fin.PM">
+            q-fin.PM — Portfolio Management
+          </option>
+
+          <option value="eess.SP">
+            eess.SP — Signal Processing
+          </option>
+
+          <option value="cs.AI">
+            cs.AI — Artificial Intelligence
+          </option>
+
+          <option value="cs.CC">
+            cs.CC — Computational Complexity
+          </option>
+
+        </select>
+
+      </div>
+
+
+      <div class="control-group search-group">
+
+        <label for="keyword-input">
+          Keyword search (title only)
+        </label>
+
+        <div class="search-row">
+
+          <input
+            type="text"
+            id="keyword-input"
+            placeholder="e.g. black hole, portfolio, transformer…"
+            autocomplete="off"
+          >
+
+          <button
+            id="search-btn"
+            class="btn"
+          >
+            Search
+          </button>
+
+          <button
+            id="search-all-btn"
+            class="btn btn-outline"
+            title="Search across all listed categories"
+          >
+            Search all
+          </button>
+
         </div>
-        <div id="results-box" class="results-box"></div>
-      </section>
 
-    </main>
+      </div>
 
-    <footer class="report-footer">
-      Data from the arXiv API · Libre Math
-    </footer>
-  </div>
+    </section>
 
-    <script src="https://cdn.jsdelivr.net/npm/compromise@14.14.4/builds/compromise.min.js"></script>
-    <script src="scientific-dictionary.js"></script>
-    <script src="arxiv.js"></script>
+
+    <hr class="rule">
+
+
+    <!-- ===================================================
+         MAIN PAPER VIEW
+         
+         LEFT        CENTER       RIGHT
+         latest 5    main paper    quick take
+         =================================================== -->
+
+    <section
+      id="paper-view"
+      class="paper-view"
+    >
+
+      <div
+        id="paper-status"
+        class="status"
+      >
+        Loading newest papers…
+      </div>
+
+
+      <div
+        id="paper-content"
+        class="paper-layout"
+        hidden
+      >
+
+        <!-- ===============================================
+             LEFT: LATEST PAPERS
+             =============================================== -->
+
+        <aside class="latest-panel">
+
+          <div class="latest-header">
+
+            <span class="latest-label">
+              Latest
+            </span>
+
+          </div>
+
+          <div
+            id="latest-papers"
+            class="latest-papers"
+          >
+
+            <div class="summary-placeholder">
+              Loading…
+            </div>
+
+          </div>
+
+        </aside>
+
+
+        <!-- ===============================================
+             CENTER: MAIN PAPER
+             =============================================== -->
+
+        <div class="paper-main">
+
+          <div class="paper-meta">
+
+            <span
+              id="paper-id"
+              class="mono"
+            ></span>
+
+            <span
+              id="paper-date"
+              class="mono"
+            ></span>
+
+            <span
+              id="paper-cats"
+              class="mono"
+            ></span>
+
+          </div>
+
+
+          <h2
+            id="paper-title"
+            class="paper-title"
+          ></h2>
+
+
+          <p
+            id="paper-authors"
+            class="paper-authors mono"
+          ></p>
+
+
+          <hr class="rule">
+
+
+          <div
+            id="paper-abstract"
+            class="paper-abstract"
+          ></div>
+
+
+          <div class="paper-actions">
+
+            <a
+              id="paper-abs-link"
+              class="btn"
+              target="_blank"
+              rel="noopener"
+            >
+              Abstract page
+            </a>
+
+            <a
+              id="paper-pdf-link"
+              class="btn"
+              target="_blank"
+              rel="noopener"
+            >
+              PDF
+            </a>
+
+            <button
+              id="random-paper-btn"
+              class="btn"
+            >
+              Random paper
+            </button>
+
+          </div>
+
+        </div>
+
+
+        <!-- ===============================================
+             RIGHT: SUMMARY
+             =============================================== -->
+
+        <aside class="summary-panel">
+
+          <div class="summary-header">
+
+            <span class="summary-label">
+              Quick take
+            </span>
+
+            <button
+              id="summarize-btn"
+              class="btn btn-outline"
+            >
+              Sum up
+            </button>
+
+          </div>
+
+
+          <div
+            id="summary-box"
+            class="summary-box"
+          >
+
+            <p class="summary-placeholder">
+              Click “Sum up” for a short, plain-English version of the abstract.
+            </p>
+
+          </div>
+
+        </aside>
+
+      </div>
+
+    </section>
+
+
+    <!-- ===================================================
+         SEARCH RESULTS
+         =================================================== -->
+
+    <section
+      id="results-section"
+      class="results-section"
+      hidden
+    >
+
+      <div class="results-header">
+
+        <h3>
+          Search results
+        </h3>
+
+        <div class="results-nav">
+
+          <button
+            id="prev-btn"
+            class="btn btn-outline"
+            disabled
+          >
+            ← Previous
+          </button>
+
+          <span
+            id="results-info"
+            class="mono"
+          ></span>
+
+          <button
+            id="next-btn"
+            class="btn btn-outline"
+            disabled
+          >
+            Next 10 →
+          </button>
+
+        </div>
+
+      </div>
+
+
+      <div
+        id="results-box"
+        class="results-box"
+      ></div>
+
+    </section>
+
+  </main>
+
+
+  <footer class="report-footer">
+    Data from the arXiv API · Libre Math
+  </footer>
+
+</div>
+
+
+<!-- IMPORTANT:
+     scientific-dictionary.js MUST come first.
+     arxiv.js uses SCIENTIFIC_DICTIONARY.
+-->
+
+<script src="scientific-dictionary.js"></script>
+<script src="arxiv.js"></script>
+
 </body>
 </html>
