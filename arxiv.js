@@ -2,15 +2,27 @@
 // arXiv Technical Report
 // Main JavaScript
 //
-// Files required:
+// Required HTML order:
 //
 // <script src="scientific-dictionary.js"></script>
 // <script src="arxiv.js"></script>
 //
-// No Compromise.
-// No external NLP library.
-// No AI API.
-// No subscription.
+// Features:
+//
+// - arXiv category browsing
+// - newest paper for selected category
+// - 5 latest papers in left sidebar
+// - clickable latest papers
+// - keyword search
+// - search-all
+// - pagination
+// - random paper
+// - scientific dictionary simplification
+// - academic phrase simplification
+// - related Wikipedia articles
+// - light / dark theme
+//
+// No Compromise dependency.
 // =========================================================
 
 
@@ -24,101 +36,75 @@ const WIKIPEDIA_API =
   "https://en.wikipedia.org/w/api.php";
 
 
+const PAGE_SIZE = 10;
+
+const LATEST_COUNT = 5;
+
+
 // =========================================================
-// DOM ELEMENTS
+// DOM
 // =========================================================
 
 const categorySelect =
-  document.getElementById(
-    "category-select"
-  );
+  document.getElementById("category-select");
 
 const keywordInput =
-  document.getElementById(
-    "keyword-input"
-  );
+  document.getElementById("keyword-input");
 
 const searchBtn =
-  document.getElementById(
-    "search-btn"
-  );
+  document.getElementById("search-btn");
 
 const searchAllBtn =
-  document.getElementById(
-    "search-all-btn"
-  );
+  document.getElementById("search-all-btn");
 
 
 const paperStatus =
-  document.getElementById(
-    "paper-status"
-  );
+  document.getElementById("paper-status");
 
 const paperContent =
-  document.getElementById(
-    "paper-content"
-  );
+  document.getElementById("paper-content");
 
 
 const resultsSection =
-  document.getElementById(
-    "results-section"
-  );
+  document.getElementById("results-section");
 
 const resultsBox =
-  document.getElementById(
-    "results-box"
-  );
+  document.getElementById("results-box");
 
 const resultsInfo =
-  document.getElementById(
-    "results-info"
-  );
+  document.getElementById("results-info");
 
 
 const prevBtn =
-  document.getElementById(
-    "prev-btn"
-  );
+  document.getElementById("prev-btn");
 
 const nextBtn =
-  document.getElementById(
-    "next-btn"
-  );
+  document.getElementById("next-btn");
 
 
 const themeToggle =
-  document.getElementById(
-    "theme-toggle"
-  );
+  document.getElementById("theme-toggle");
 
 const randomPaperBtn =
-  document.getElementById(
-    "random-paper-btn"
-  );
+  document.getElementById("random-paper-btn");
 
 
 const summarizeBtn =
-  document.getElementById(
-    "summarize-btn"
-  );
+  document.getElementById("summarize-btn");
 
 const summaryBox =
-  document.getElementById(
-    "summary-box"
-  );
+  document.getElementById("summary-box");
 
 
 const latestList =
-  document.getElementById(
-    "latest-list"
-  );
+  document.getElementById("latest-list");
+
+const latestCategory =
+  document.getElementById("latest-category");
 
 
-const wikiList =
-  document.getElementById(
-    "wiki-list"
-  );
+const wikipediaList =
+  document.getElementById("wikipedia-list");
 
 
 // =========================================================
@@ -129,9 +115,11 @@ let currentStart = 0;
 
 let lastIsAll = false;
 
+let latestPapers = [];
+
 let currentPaper = null;
 
-const PAGE_SIZE = 10;
+let latestRequestId = 0;
 
 
 // =========================================================
@@ -165,14 +153,15 @@ function applyTheme(theme) {
 
   } catch (error) {
 
-    // Ignore storage errors.
+    // Ignore localStorage errors.
   }
 }
 
 
 (function initTheme() {
 
-  let saved = "light";
+  let saved =
+    "light";
 
 
   try {
@@ -198,9 +187,8 @@ if (themeToggle) {
 
       const current =
         document.documentElement
-          .getAttribute(
-            "data-theme"
-          ) || "light";
+          .getAttribute("data-theme") ||
+        "light";
 
 
       applyTheme(
@@ -211,6 +199,30 @@ if (themeToggle) {
 
     }
   );
+
+}
+
+
+// =========================================================
+// CATEGORY NAME
+// =========================================================
+
+function getCategoryName() {
+
+  if (!categorySelect) {
+    return "";
+  }
+
+
+  const option =
+    categorySelect.options[
+      categorySelect.selectedIndex
+    ];
+
+
+  return option
+    ? option.textContent.trim()
+    : categorySelect.value;
 }
 
 
@@ -221,7 +233,6 @@ if (themeToggle) {
 function showStatus(message) {
 
   if (paperContent) {
-
     paperContent.hidden = true;
   }
 
@@ -237,95 +248,89 @@ function showStatus(message) {
 
 
 // =========================================================
-// SHOW PAPER
+// PAPER DISPLAY
 // =========================================================
 
 function showPaper(paper) {
 
-  currentPaper = paper;
+  currentPaper =
+    paper;
 
 
   if (paperStatus) {
-
     paperStatus.hidden = true;
   }
 
 
   if (paperContent) {
-
     paperContent.hidden = false;
   }
 
 
-  const paperId =
+  const idEl =
     document.getElementById(
       "paper-id"
     );
 
-  const paperDate =
+  const dateEl =
     document.getElementById(
       "paper-date"
     );
 
-  const paperCats =
+  const catsEl =
     document.getElementById(
       "paper-cats"
     );
 
-  const paperTitle =
+  const titleEl =
     document.getElementById(
       "paper-title"
     );
 
-  const paperAuthors =
+  const authorsEl =
     document.getElementById(
       "paper-authors"
     );
 
-  const paperAbstract =
+  const abstractEl =
     document.getElementById(
       "paper-abstract"
     );
 
 
-  if (paperId) {
-
-    paperId.textContent =
+  if (idEl) {
+    idEl.textContent =
       paper.arxivId || "";
   }
 
 
-  if (paperDate) {
-
-    paperDate.textContent =
+  if (dateEl) {
+    dateEl.textContent =
       paper.published || "";
   }
 
 
-  if (paperCats) {
-
-    paperCats.textContent =
+  if (catsEl) {
+    catsEl.textContent =
       paper.cats || "";
   }
 
 
-  if (paperTitle) {
-
-    paperTitle.textContent =
+  if (titleEl) {
+    titleEl.textContent =
       paper.title || "";
   }
 
 
-  if (paperAuthors) {
-
-    paperAuthors.textContent =
+  if (authorsEl) {
+    authorsEl.textContent =
       paper.authors || "";
   }
 
 
-  if (paperAbstract) {
+  if (abstractEl) {
 
-    paperAbstract.textContent =
+    abstractEl.textContent =
       paper.summary || "";
   }
 
@@ -358,6 +363,20 @@ function showPaper(paper) {
   }
 
 
+  resetSummary();
+
+  loadWikipediaArticles(paper);
+
+  refreshLatestHighlight();
+}
+
+
+// =========================================================
+// RESET SUMMARY
+// =========================================================
+
+function resetSummary() {
+
   if (summaryBox) {
 
     summaryBox.innerHTML =
@@ -365,14 +384,6 @@ function showPaper(paper) {
       'Click “Sum up” for a short, plain-English version of the abstract.' +
       "</p>";
   }
-
-
-  /*
-   * Every time the main paper changes,
-   * find new Wikipedia articles.
-   */
-
-  loadRelatedWikipedia(paper);
 }
 
 
@@ -399,6 +410,10 @@ function parseEntries(xmlText) {
     )
   ) {
 
+    console.error(
+      "Could not parse arXiv XML."
+    );
+
     return [];
   }
 
@@ -409,7 +424,6 @@ function parseEntries(xmlText) {
     )
   ).map(function (entry) {
 
-
     const idNode =
       entry.querySelector(
         "id"
@@ -418,14 +432,15 @@ function parseEntries(xmlText) {
 
     const idUrl =
       idNode
-        ? idNode.textContent
+        ? idNode.textContent.trim()
         : "";
 
 
     const arxivId =
       idUrl
         .split("/abs/")
-        .pop() ||
+        .pop()
+        .split("?")[0] ||
       idUrl;
 
 
@@ -438,10 +453,7 @@ function parseEntries(xmlText) {
     const title =
       titleNode
         ? titleNode.textContent
-            .replace(
-              /\s+/g,
-              " "
-            )
+            .replace(/\s+/g, " ")
             .trim()
         : "";
 
@@ -455,10 +467,7 @@ function parseEntries(xmlText) {
     const summary =
       summaryNode
         ? summaryNode.textContent
-            .replace(
-              /\s+/g,
-              " "
-            )
+            .replace(/\s+/g, " ")
             .trim()
         : "";
 
@@ -484,8 +493,7 @@ function parseEntries(xmlText) {
       )
       .map(function (node) {
 
-        return node.textContent
-          .trim();
+        return node.textContent.trim();
 
       })
       .join(", ");
@@ -565,6 +573,13 @@ function escapeHtml(str) {
 
 // =========================================================
 // CATEGORY QUERY
+//
+// IMPORTANT:
+// Keep the category system intact.
+//
+// q-fin is special because its parent category is not
+// directly usable in the same way as a normal arXiv
+// category.
 // =========================================================
 
 function getCategoryQuery(category) {
@@ -589,7 +604,287 @@ function getCategoryQuery(category) {
 
 
 // =========================================================
-// LOAD MAIN PAPER
+// ARXIV FETCH
+// =========================================================
+
+async function fetchArxiv(
+  searchQuery,
+  start,
+  maxResults
+) {
+
+  const query =
+    "search_query=" +
+    encodeURIComponent(
+      searchQuery
+    ) +
+
+    "&sortBy=submittedDate" +
+
+    "&sortOrder=descending" +
+
+    "&start=" +
+    start +
+
+    "&max_results=" +
+    maxResults;
+
+
+  const url =
+    PROXY +
+    encodeURIComponent(
+      API + "?" + query
+    );
+
+
+  const response =
+    await fetch(url);
+
+
+  if (!response.ok) {
+
+    throw new Error(
+      "arXiv HTTP " +
+      response.status
+    );
+  }
+
+
+  const text =
+    await response.text();
+
+
+  return parseEntries(text);
+}
+
+
+// =========================================================
+// LOAD LATEST FIVE
+// =========================================================
+//
+// This is separate from loadPaper().
+// Therefore the sidebar always contains the actual newest
+// five papers even when the main paper is randomly selected.
+// =========================================================
+
+async function loadLatestPapers() {
+
+  if (!categorySelect) {
+    return;
+  }
+
+
+  const requestId =
+    ++latestRequestId;
+
+
+  const category =
+    categorySelect.value;
+
+
+  const categoryName =
+    getCategoryName();
+
+
+  if (latestCategory) {
+
+    latestCategory.textContent =
+      categoryName;
+  }
+
+
+  if (latestList) {
+
+    latestList.innerHTML =
+      '<div class="latest-loading">' +
+      "Loading latest papers…" +
+      "</div>";
+  }
+
+
+  try {
+
+    const papers =
+      await fetchArxiv(
+        getCategoryQuery(category),
+        0,
+        LATEST_COUNT
+      );
+
+
+    // Ignore old requests when user changes category
+    // quickly.
+
+    if (
+      requestId !== latestRequestId
+    ) {
+      return;
+    }
+
+
+    latestPapers =
+      papers;
+
+
+    renderLatestPapers(
+      papers
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      "Latest papers error:",
+      error
+    );
+
+
+    if (latestList) {
+
+      latestList.innerHTML =
+        '<div class="latest-loading">' +
+        "Could not load latest papers." +
+        "</div>";
+    }
+  }
+}
+
+
+// =========================================================
+// RENDER LATEST FIVE
+// =========================================================
+
+function renderLatestPapers(
+  papers
+) {
+
+  if (!latestList) {
+    return;
+  }
+
+
+  latestList.innerHTML =
+    "";
+
+
+  if (!papers.length) {
+
+    latestList.innerHTML =
+      '<div class="latest-loading">' +
+      "No recent papers found." +
+      "</div>";
+
+    return;
+  }
+
+
+  papers.forEach(
+    function (paper, index) {
+
+      const button =
+        document.createElement(
+          "button"
+        );
+
+
+      button.type =
+        "button";
+
+
+      button.className =
+        "latest-item";
+
+
+      button.dataset.arxivId =
+        paper.arxivId;
+
+
+      button.innerHTML =
+
+        '<span class="latest-item-number">' +
+        String(index + 1).padStart(2, "0") +
+        "</span>" +
+
+        '<span class="latest-item-title">' +
+        escapeHtml(
+          paper.title
+        ) +
+        "</span>" +
+
+        '<span class="latest-item-date">' +
+        escapeHtml(
+          paper.published
+        ) +
+        "</span>";
+
+
+      button.addEventListener(
+        "click",
+        function () {
+
+          showPaper(
+            paper
+          );
+
+
+          window.scrollTo({
+
+            top: 0,
+
+            behavior: "smooth"
+
+          });
+
+        }
+      );
+
+
+      latestList.appendChild(
+        button
+      );
+
+    }
+  );
+
+
+  refreshLatestHighlight();
+}
+
+
+// =========================================================
+// HIGHLIGHT CURRENT PAPER IN LATEST LIST
+// =========================================================
+
+function refreshLatestHighlight() {
+
+  if (!latestList) {
+    return;
+  }
+
+
+  const items =
+    latestList.querySelectorAll(
+      ".latest-item"
+    );
+
+
+  items.forEach(
+    function (item) {
+
+      item.classList.toggle(
+        "active",
+        currentPaper &&
+        item.dataset.arxivId ===
+        currentPaper.arxivId
+      );
+
+    }
+  );
+}
+
+
+// =========================================================
+// LOAD NEWEST / RANDOM MAIN PAPER
 // =========================================================
 
 async function loadPaper(
@@ -605,16 +900,18 @@ async function loadPaper(
 
 
   if (resultsSection) {
-
     resultsSection.hidden = true;
   }
 
 
   const catQuery =
-    getCategoryQuery(category);
+    getCategoryQuery(
+      category
+    );
 
 
-  let start = 0;
+  let start =
+    0;
 
 
   if (random) {
@@ -626,50 +923,14 @@ async function loadPaper(
   }
 
 
-  const query =
-    "search_query=" +
-    encodeURIComponent(
-      catQuery
-    ) +
-
-    "&sortBy=submittedDate" +
-
-    "&sortOrder=descending" +
-
-    "&start=" +
-    start +
-
-    "&max_results=1";
-
-
-  const url =
-    PROXY +
-    encodeURIComponent(
-      API + "?" + query
-    );
-
-
   try {
 
-    const res =
-      await fetch(url);
-
-
-    if (!res.ok) {
-
-      throw new Error(
-        "HTTP " +
-        res.status
-      );
-    }
-
-
-    const text =
-      await res.text();
-
-
     const papers =
-      parseEntries(text);
+      await fetchArxiv(
+        catQuery,
+        start,
+        1
+      );
 
 
     if (!papers.length) {
@@ -702,168 +963,6 @@ async function loadPaper(
 
 
 // =========================================================
-// LOAD FIVE LATEST PAPERS
-// =========================================================
-
-async function loadLatestPapers(
-  category
-) {
-
-  if (!latestList) {
-    return;
-  }
-
-
-  latestList.innerHTML =
-    '<div class="latest-loading">' +
-    "Loading…" +
-    "</div>";
-
-
-  const catQuery =
-    getCategoryQuery(
-      category
-    );
-
-
-  const query =
-    "search_query=" +
-    encodeURIComponent(
-      catQuery
-    ) +
-
-    "&sortBy=submittedDate" +
-
-    "&sortOrder=descending" +
-
-    "&start=0" +
-
-    "&max_results=5";
-
-
-  const url =
-    PROXY +
-    encodeURIComponent(
-      API + "?" + query
-    );
-
-
-  try {
-
-    const res =
-      await fetch(url);
-
-
-    if (!res.ok) {
-
-      throw new Error(
-        "HTTP " +
-        res.status
-      );
-    }
-
-
-    const text =
-      await res.text();
-
-
-    const papers =
-      parseEntries(text);
-
-
-    if (!papers.length) {
-
-      latestList.innerHTML =
-        '<div class="latest-empty">' +
-        "No recent papers." +
-        "</div>";
-
-      return;
-    }
-
-
-    latestList.innerHTML =
-      "";
-
-
-    papers.forEach(
-      function (paper) {
-
-        const button =
-          document.createElement(
-            "button"
-          );
-
-
-        button.type =
-          "button";
-
-
-        button.className =
-          "latest-item";
-
-
-        button.innerHTML =
-
-          '<span class="latest-title">' +
-          escapeHtml(
-            paper.title
-          ) +
-          "</span>" +
-
-          '<span class="latest-date">' +
-          escapeHtml(
-            paper.published
-          ) +
-          "</span>";
-
-
-        button.addEventListener(
-          "click",
-          function () {
-
-            showPaper(
-              paper
-            );
-
-
-            window.scrollTo({
-
-              top: 0,
-
-              behavior: "smooth"
-
-            });
-
-          }
-        );
-
-
-        latestList.appendChild(
-          button
-        );
-
-      }
-    );
-
-
-  } catch (error) {
-
-    console.error(
-      "Latest papers error:",
-      error
-    );
-
-
-    latestList.innerHTML =
-      '<div class="latest-error">' +
-      "Could not load recent papers." +
-      "</div>";
-  }
-}
-
-
-// =========================================================
 // SEARCH
 // =========================================================
 
@@ -872,8 +971,7 @@ async function runSearch(
 ) {
 
   if (
-    typeof start !==
-    "number"
+    typeof start !== "number"
   ) {
 
     start = 0;
@@ -901,9 +999,7 @@ async function runSearch(
 
 
   if (resultsSection) {
-
-    resultsSection.hidden =
-      false;
+    resultsSection.hidden = false;
   }
 
 
@@ -917,28 +1013,26 @@ async function runSearch(
 
 
   if (resultsInfo) {
-
-    resultsInfo.textContent =
-      "";
+    resultsInfo.textContent = "";
   }
 
 
   if (prevBtn) {
-
-    prevBtn.disabled =
-      true;
+    prevBtn.disabled = true;
   }
 
 
   if (nextBtn) {
-
-    nextBtn.disabled =
-      true;
+    nextBtn.disabled = true;
   }
 
 
   let searchQuery;
 
+
+  // -------------------------------------------------------
+  // Search all categories
+  // -------------------------------------------------------
 
   if (lastIsAll) {
 
@@ -946,26 +1040,22 @@ async function runSearch(
       Array.from(
         categorySelect.options
       )
-      .map(function (
-        option
-      ) {
-
-        return option.value;
-
-      });
+      .map(
+        function (option) {
+          return option.value;
+        }
+      );
 
 
     const catPart =
       cats
-        .map(function (
-          category
-        ) {
-
-          return getCategoryQuery(
-            category
-          );
-
-        })
+        .map(
+          function (category) {
+            return getCategoryQuery(
+              category
+            );
+          }
+        )
         .join(" OR ");
 
 
@@ -994,51 +1084,14 @@ async function runSearch(
   }
 
 
-  const query =
-    "search_query=" +
-    encodeURIComponent(
-      searchQuery
-    ) +
-
-    "&sortBy=submittedDate" +
-
-    "&sortOrder=descending" +
-
-    "&start=" +
-    start +
-
-    "&max_results=" +
-    PAGE_SIZE;
-
-
-  const url =
-    PROXY +
-    encodeURIComponent(
-      API + "?" + query
-    );
-
-
   try {
 
-    const res =
-      await fetch(url);
-
-
-    if (!res.ok) {
-
-      throw new Error(
-        "HTTP " +
-        res.status
-      );
-    }
-
-
-    const text =
-      await res.text();
-
-
     const papers =
-      parseEntries(text);
+      await fetchArxiv(
+        searchQuery,
+        start,
+        PAGE_SIZE
+      );
 
 
     if (!resultsBox) {
@@ -1137,13 +1190,9 @@ async function runSearch(
     if (resultsInfo) {
 
       resultsInfo.textContent =
-
         (start + 1) +
-
         "–" +
-
-        (start +
-          papers.length);
+        (start + papers.length);
     }
 
 
@@ -1181,7 +1230,7 @@ async function runSearch(
 
 
 // =========================================================
-// ABSTRACT SUMMARY
+// ABSTRACT SIMPLIFIER
 // =========================================================
 
 function summarizeAbstract() {
@@ -1208,15 +1257,12 @@ function summarizeAbstract() {
         "</p>";
     }
 
-
     return;
   }
 
 
   if (summarizeBtn) {
-
-    summarizeBtn.disabled =
-      true;
+    summarizeBtn.disabled = true;
   }
 
 
@@ -1250,25 +1296,9 @@ function summarizeAbstract() {
 
         if (summaryBox) {
 
-          /*
-           * Keep the Wikipedia panel intact.
-           * Only replace the actual summary text.
-           */
-
-          const wikiPanel =
-            summaryBox.parentElement
-              ? summaryBox.parentElement
-                .querySelector(
-                  ".wiki-panel"
-                )
-              : null;
-
-
           summaryBox.innerHTML =
             '<p class="summary-result">' +
-            escapeHtml(
-              summary
-            ) +
+            escapeHtml(summary) +
             "</p>";
         }
 
@@ -1293,10 +1323,9 @@ function summarizeAbstract() {
       } finally {
 
         if (summarizeBtn) {
-
-          summarizeBtn.disabled =
-            false;
+          summarizeBtn.disabled = false;
         }
+
       }
 
     },
@@ -1306,7 +1335,7 @@ function summarizeAbstract() {
 
 
 // =========================================================
-// ABSTRACT SIMPLIFIER
+// MAIN ABSTRACT SIMPLIFIER
 // =========================================================
 
 function simplifyAbstract(text) {
@@ -1329,9 +1358,7 @@ function simplifyAbstract(text) {
     sentences.filter(
       function (sentence) {
 
-        return (
-          sentence.length >= 35
-        );
+        return sentence.length >= 35;
 
       }
     );
@@ -1347,40 +1374,38 @@ function simplifyAbstract(text) {
 
   const ranked =
     sentences
-      .map(function (
-        sentence,
-        index
-      ) {
 
-        return {
+      .map(
+        function (sentence, index) {
 
-          sentence:
-            sentence,
+          return {
 
-          index:
-            index,
-
-          score:
-            scoreSentence(
+            sentence:
               sentence,
+
+            index:
               index,
-              sentences.length
-            )
 
-        };
+            score:
+              scoreSentence(
+                sentence,
+                index,
+                sentences.length
+              )
 
-      })
-      .sort(function (
-        a,
-        b
-      ) {
+          };
 
-        return (
-          b.score -
-          a.score
-        );
+        }
+      )
 
-      });
+      .sort(
+        function (a, b) {
+
+          return b.score -
+            a.score;
+
+        }
+      );
 
 
   const selected = [];
@@ -1397,17 +1422,15 @@ function simplifyAbstract(text) {
           return (
 
             !selected.some(
-              function (
-                chosen
-              ) {
+              function (chosen) {
 
-                return (
-                  chosen.index ===
-                  item.index
-                );
+                return chosen.index ===
+                  item.index;
 
               }
-            ) &&
+            )
+
+            &&
 
             predicate(
               item.sentence
@@ -1429,173 +1452,89 @@ function simplifyAbstract(text) {
   }
 
 
-  // Problem.
+  // Problem / motivation
 
   addBest(
     function (text) {
 
       return (
 
-        text.includes(
-          "problem"
-        ) ||
-
-        text.includes(
-          "challenge"
-        ) ||
-
-        text.includes(
-          "difficult"
-        ) ||
-
-        text.includes(
-          "difficulty"
-        ) ||
-
-        text.includes(
-          "limited"
-        ) ||
-
-        text.includes(
-          "lack"
-        ) ||
-
-        text.includes(
-          "avoid"
-        ) ||
-
-        text.includes(
-          "cannot"
-        ) ||
-
-        text.includes(
-          "hard"
-        )
+        text.includes("problem") ||
+        text.includes("challenge") ||
+        text.includes("difficult") ||
+        text.includes("difficulty") ||
+        text.includes("limited") ||
+        text.includes("lack") ||
+        text.includes("avoid") ||
+        text.includes("cannot") ||
+        text.includes("hard")
 
       );
+
     }
   );
 
 
-  // Method.
+  // Method
 
   addBest(
     function (text) {
 
       return (
 
-        text.includes(
-          "we propose"
-        ) ||
-
-        text.includes(
-          "we present"
-        ) ||
-
-        text.includes(
-          "we introduce"
-        ) ||
-
-        text.includes(
-          "we develop"
-        ) ||
-
-        text.includes(
-          "we use"
-        ) ||
-
-        text.includes(
-          "we apply"
-        ) ||
-
-        text.includes(
-          "method"
-        ) ||
-
-        text.includes(
-          "approach"
-        ) ||
-
-        text.includes(
-          "model"
-        ) ||
-
-        text.includes(
-          "system"
-        )
+        text.includes("we propose") ||
+        text.includes("we present") ||
+        text.includes("we introduce") ||
+        text.includes("we develop") ||
+        text.includes("we use") ||
+        text.includes("we apply") ||
+        text.includes("method") ||
+        text.includes("approach") ||
+        text.includes("model") ||
+        text.includes("system")
 
       );
+
     }
   );
 
 
-  // Results.
+  // Results
 
   addBest(
     function (text) {
 
       return (
 
-        text.includes(
-          "result"
-        ) ||
-
-        text.includes(
-          "results"
-        ) ||
-
-        text.includes(
-          "find"
-        ) ||
-
-        text.includes(
-          "show"
-        ) ||
-
-        text.includes(
-          "demonstrate"
-        ) ||
-
-        text.includes(
-          "improve"
-        ) ||
-
-        text.includes(
-          "increase"
-        ) ||
-
-        text.includes(
-          "reduce"
-        )
+        text.includes("result") ||
+        text.includes("results") ||
+        text.includes("find") ||
+        text.includes("show") ||
+        text.includes("demonstrate") ||
+        text.includes("improve") ||
+        text.includes("increase") ||
+        text.includes("reduce")
 
       );
+
     }
   );
 
-
-  // Fill remaining slots.
 
   ranked.forEach(
     function (item) {
 
-      if (
-        selected.length >= 4
-      ) {
-
+      if (selected.length >= 4) {
         return;
       }
 
 
       const exists =
         selected.some(
-          function (
-            chosen
-          ) {
+          function (chosen) {
 
-            return (
-              chosen.index ===
-              item.index
-            );
+            return chosen.index ===
+              item.index;
 
           }
         );
@@ -1607,6 +1546,7 @@ function simplifyAbstract(text) {
           item
         );
       }
+
     }
   );
 
@@ -1614,10 +1554,8 @@ function simplifyAbstract(text) {
   selected.sort(
     function (a, b) {
 
-      return (
-        a.index -
-        b.index
-      );
+      return a.index -
+        b.index;
 
     }
   );
@@ -1625,16 +1563,19 @@ function simplifyAbstract(text) {
 
   let simplified =
     selected
+
       .slice(0, 4)
-      .map(function (
-        item
-      ) {
 
-        return simplifySentence(
-          item.sentence
-        );
+      .map(
+        function (item) {
 
-      })
+          return simplifySentence(
+            item.sentence
+          );
+
+        }
+      )
+
       .filter(Boolean);
 
 
@@ -1665,14 +1606,10 @@ function simplifyAbstract(text) {
 
 
   const words =
-    result.split(
-      /\s+/
-    );
+    result.split(/\s+/);
 
 
-  if (
-    words.length > 115
-  ) {
+  if (words.length > 115) {
 
     result =
       words
@@ -1689,110 +1626,37 @@ function simplifyAbstract(text) {
 // =========================================================
 // SENTENCE SPLITTING
 // =========================================================
+//
+// Compromise is intentionally NOT required.
+//
+// This fixes the previous CDN/MIME problem because the
+// simplifier never depends on compromise.min.js.
+// =========================================================
 
-function splitIntoSentences(
-  text
-) {
+function splitIntoSentences(text) {
 
-  /*
-   * No Compromise.
-   *
-   * Scientific abstracts frequently contain:
-   *
-   * "e.g."
-   * "i.e."
-   * "Fig."
-   * "Eq."
-   * decimal numbers
-   *
-   * so protect common abbreviations first.
-   */
+  return text
 
-  let protectedText =
-    text
-      .replace(
-        /\be\.g\./gi,
-        "eg§"
-      )
-      .replace(
-        /\bi\.e\./gi,
-        "ie§"
-      )
-      .replace(
-        /\bFig\./g,
-        "Fig§"
-      )
-      .replace(
-        /\bEq\./g,
-        "Eq§"
-      )
-      .replace(
-        /\bDr\./g,
-        "Dr§"
-      )
-      .replace(
-        /\bProf\./g,
-        "Prof§"
-      );
+    .replace(
+      /\s+/g,
+      " "
+    )
 
+    .trim()
 
-  protectedText =
-    protectedText
-      .replace(
-        /\s+/g,
-        " "
-      )
-      .trim();
+    .split(
+      /(?<=[.!?])\s+(?=[A-Z])/ 
+    )
 
+    .map(
+      function (sentence) {
 
-  const sentences =
-    protectedText
-      .split(
-        /(?<=[.!?])\s+(?=[A-Z0-9])/g
-      )
-      .map(
-        function (sentence) {
+        return sentence.trim();
 
-          return sentence
+      }
+    )
 
-            .replace(
-              /eg§/gi,
-              "e.g."
-            )
-
-            .replace(
-              /ie§/gi,
-              "i.e."
-            )
-
-            .replace(
-              /Fig§/g,
-              "Fig."
-            )
-
-            .replace(
-              /Eq§/g,
-              "Eq."
-            )
-
-            .replace(
-              /Dr§/g,
-              "Dr."
-            )
-
-            .replace(
-              /Prof§/g,
-              "Prof."
-            )
-
-            .trim();
-
-        }
-      )
-      .filter(Boolean);
-
-
-  return sentences;
+    .filter(Boolean);
 }
 
 
@@ -1810,17 +1674,16 @@ function scoreSentence(
     sentence.toLowerCase();
 
 
-  let score = 0;
+  let score =
+    0;
 
 
   if (index === 0) {
-
     score += 5;
   }
 
 
   if (index === 1) {
-
     score += 2;
   }
 
@@ -1861,13 +1724,7 @@ function scoreSentence(
     "important",
     "useful",
     "benefit",
-    "potential",
-
-    "we formulate",
-    "we study",
-    "we investigate",
-    "we analyze",
-    "we analyse"
+    "potential"
 
   ];
 
@@ -1881,6 +1738,7 @@ function scoreSentence(
 
         score += 2;
       }
+
     }
   );
 
@@ -1891,15 +1749,6 @@ function scoreSentence(
   ) {
 
     score += 5;
-  }
-
-
-  if (
-    /\bwe\s+(show|demonstrate|find|propose)\b/i
-      .test(sentence)
-  ) {
-
-    score += 3;
   }
 
 
@@ -1935,6 +1784,17 @@ function scoreSentence(
 // =========================================================
 // SCIENTIFIC DICTIONARY
 // =========================================================
+//
+// THIS IS WHERE scientific-dictionary.js IS USED.
+//
+// The HTML loads:
+// scientific-dictionary.js
+//
+// before:
+// arxiv.js
+//
+// So SCIENTIFIC_DICTIONARY is available here.
+// =========================================================
 
 function applyScientificDictionary(
   text
@@ -1942,7 +1802,7 @@ function applyScientificDictionary(
 
   if (
     typeof SCIENTIFIC_DICTIONARY ===
-    "undefined" ||
+      "undefined" ||
 
     !SCIENTIFIC_DICTIONARY
   ) {
@@ -1950,7 +1810,6 @@ function applyScientificDictionary(
     console.warn(
       "scientific-dictionary.js was not loaded."
     );
-
 
     return text;
   }
@@ -1967,10 +1826,8 @@ function applyScientificDictionary(
     .sort(
       function (a, b) {
 
-        return (
-          b.length -
-          a.length
-        );
+        return b.length -
+          a.length;
 
       }
     );
@@ -1985,15 +1842,6 @@ function applyScientificDictionary(
         ];
 
 
-      if (
-        typeof replacement !==
-        "string"
-      ) {
-
-        return;
-      }
-
-
       const escaped =
         term.replace(
           /[.*+?^${}()|[\]\\]/g,
@@ -2001,17 +1849,11 @@ function applyScientificDictionary(
         );
 
 
-      /*
-       * Use word boundaries when possible.
-       * This prevents "model" from changing
-       * part of "modeling".
-       */
-
       const regex =
         new RegExp(
-          "(^|\\s)" +
+          "\\b" +
           escaped +
-          "(?=\\s|[,.!?;:]|$)",
+          "\\b",
           "gi"
         );
 
@@ -2019,17 +1861,7 @@ function applyScientificDictionary(
       result =
         result.replace(
           regex,
-          function (
-            match,
-            prefix
-          ) {
-
-            return (
-              prefix +
-              replacement
-            );
-
-          }
+          replacement
         );
 
     }
@@ -2343,15 +2175,14 @@ function simplifyAcademicPhrases(
 
 
   replacements.forEach(
-    function (
-      replacement
-    ) {
+    function (replacement) {
 
       result =
         result.replace(
           replacement[0],
           replacement[1]
         );
+
     }
   );
 
@@ -2380,12 +2211,11 @@ function simplifySentence(
 
 
   result =
-    result
-      .replace(
-        /\s+/g,
-        " "
-      )
-      .trim();
+    result.replace(
+      /\s+/g,
+      " "
+    )
+    .trim();
 
 
   result =
@@ -2394,10 +2224,8 @@ function simplifySentence(
     );
 
 
-  /*
-   * Dictionary is deliberately applied
-   * after academic phrase rewrites.
-   */
+  // IMPORTANT:
+  // Dictionary is applied here.
 
   result =
     applyScientificDictionary(
@@ -2481,9 +2309,7 @@ function simplifySentence(
 
 
   generalReplacements.forEach(
-    function (
-      replacement
-    ) {
+    function (replacement) {
 
       result =
         result.replace(
@@ -2511,15 +2337,13 @@ function simplifySentence(
       .trim();
 
 
-  if (
-    result.length > 0
-  ) {
+  if (result.length > 0) {
 
     result =
       result.charAt(0)
         .toUpperCase() +
-
       result.slice(1);
+
   }
 
 
@@ -2528,14 +2352,15 @@ function simplifySentence(
 
 
 // =========================================================
-// REMOVE DUPLICATE SENTENCES
+// REMOVE DUPLICATES
 // =========================================================
 
 function removeDuplicateSentences(
   sentences
 ) {
 
-  const result = [];
+  const result =
+    [];
 
 
   sentences.forEach(
@@ -2615,7 +2440,8 @@ function textSimilarity(
   }
 
 
-  let common = 0;
+  let common =
+    0;
 
 
   wordsA.forEach(
@@ -2643,362 +2469,46 @@ function textSimilarity(
 
 
 // =========================================================
-// WIKIPEDIA SEARCH
+// WIKIPEDIA — RELATED ARTICLES
+// =========================================================
+//
+// Uses Wikipedia's public MediaWiki API.
+//
+// We search using:
+//   1. title
+//   2. important words from abstract
+//
+// Then display five results.
+//
+// No Wikipedia library is required.
 // =========================================================
 
-async function wikipediaSearch(
-  search,
-  limit
-) {
-
-  if (!search) {
-
-    return [];
-  }
-
-
-  const params =
-    new URLSearchParams({
-
-      action:
-        "opensearch",
-
-      search:
-        search,
-
-      namespace:
-        "0",
-
-      limit:
-        String(
-          limit || 5
-        ),
-
-      format:
-        "json",
-
-      origin:
-        "*"
-
-    });
-
-
-  const url =
-    WIKIPEDIA_API +
-    "?" +
-    params.toString();
-
-
-  const response =
-    await fetch(
-      url
-    );
-
-
-  if (!response.ok) {
-
-    throw new Error(
-      "Wikipedia HTTP " +
-      response.status
-    );
-  }
-
-
-  const data =
-    await response.json();
-
-
-  const titles =
-    Array.isArray(
-      data[1]
-    )
-      ? data[1]
-      : [];
-
-
-  const descriptions =
-    Array.isArray(
-      data[2]
-    )
-      ? data[2]
-      : [];
-
-
-  const urls =
-    Array.isArray(
-      data[3]
-    )
-      ? data[3]
-      : [];
-
-
-  return titles.map(
-    function (
-      title,
-      index
-    ) {
-
-      return {
-
-        title:
-          title,
-
-        description:
-          descriptions[
-            index
-          ] || "",
-
-        url:
-          urls[
-            index
-          ] || ""
-
-      };
-
-    }
-  );
-}
-
-
-// =========================================================
-// MERGE WIKIPEDIA RESULTS
-// =========================================================
-
-function mergeWikipediaResults(
-  first,
-  second
-) {
-
-  const result = [];
-
-  const seen =
-    new Set();
-
-
-  first
-    .concat(second)
-    .forEach(
-      function (article) {
-
-        if (
-          !article ||
-          !article.title
-        ) {
-
-          return;
-        }
-
-
-        const key =
-          article.title
-            .toLowerCase()
-            .trim();
-
-
-        if (
-          seen.has(key)
-        ) {
-
-          return;
-        }
-
-
-        seen.add(key);
-
-        result.push(
-          article
-        );
-
-      }
-    );
-
-
-  return result;
-}
-
-
-// =========================================================
-// WIKIPEDIA KEYWORD EXTRACTION
-// =========================================================
-
-function extractWikipediaKeywords(
+async function loadWikipediaArticles(
   paper
 ) {
 
-  const combined =
-    (
-      (paper.title || "") +
-      " " +
-      (paper.summary || "")
-    )
-      .replace(
-        /[^a-zA-Z0-9\s-]/g,
-        " "
-      )
-      .replace(
-        /\s+/g,
-        " "
-      )
-      .trim();
-
-
-  const stopWords =
-    new Set([
-
-      "about",
-      "after",
-      "again",
-      "also",
-      "among",
-      "because",
-      "been",
-      "being",
-      "between",
-      "could",
-      "different",
-      "during",
-      "each",
-      "from",
-      "have",
-      "into",
-      "more",
-      "most",
-      "other",
-      "paper",
-      "results",
-      "show",
-      "shows",
-      "such",
-      "than",
-      "that",
-      "their",
-      "these",
-      "they",
-      "this",
-      "through",
-      "using",
-      "which",
-      "with",
-      "would",
-      "study",
-      "method",
-      "methods",
-      "system",
-      "systems",
-      "approach",
-      "proposed",
-      "present",
-      "introduce",
-      "introduced",
-      "develop",
-      "developed",
-      "we",
-      "our",
-      "the",
-      "and",
-      "for",
-      "are",
-      "was",
-      "were",
-      "its",
-      "has",
-      "can",
-      "may",
-      "not",
-      "from",
-      "under",
-      "within"
-
-    ]);
-
-
-  const words =
-    combined
-      .toLowerCase()
-      .split(/\s+/)
-      .filter(
-        function (word) {
-
-          return (
-
-            word.length >= 6 &&
-
-            !stopWords.has(
-              word
-            )
-
-          );
-
-        }
-      );
-
-
-  const frequency =
-    new Map();
-
-
-  words.forEach(
-    function (word) {
-
-      frequency.set(
-        word,
-        (frequency.get(word) || 0) +
-        1
-      );
-
-    }
-  );
-
-
-  return Array.from(
-    frequency.entries()
-  )
-  .sort(
-    function (a, b) {
-
-      return b[1] - a[1];
-
-    }
-  )
-  .slice(0, 10)
-  .map(
-    function (entry) {
-
-      return entry[0];
-
-    }
-  );
-}
-
-
-// =========================================================
-// RELATED WIKIPEDIA ARTICLES
-// =========================================================
-
-async function loadRelatedWikipedia(
-  paper
-) {
-
-  if (!wikiList) {
-
+  if (!wikipediaList) {
     return;
   }
 
 
-  wikiList.innerHTML =
+  wikipediaList.innerHTML =
     '<div class="wiki-loading">' +
     "Finding related articles…" +
     "</div>";
 
 
-  if (
-    !paper ||
-    !paper.title
-  ) {
+  const query =
+    buildWikipediaQuery(
+      paper
+    );
 
-    wikiList.innerHTML =
-      '<div class="wiki-empty">' +
-      "No paper information available." +
+
+  if (!query) {
+
+    wikipediaList.innerHTML =
+      '<div class="wiki-placeholder">' +
+      "No related topic found." +
       "</div>";
 
     return;
@@ -3007,118 +2517,47 @@ async function loadRelatedWikipedia(
 
   try {
 
-    /*
-     * First search the complete title.
-     * This is usually the strongest query.
-     */
+    const url =
+      WIKIPEDIA_API +
+      "?action=query" +
+      "&list=search" +
+      "&srsearch=" +
+      encodeURIComponent(query) +
+      "&srlimit=8" +
+      "&srnamespace=0" +
+      "&format=json" +
+      "&origin=*";
 
-    let results =
-      await wikipediaSearch(
-        paper.title,
-        5
+
+    const response =
+      await fetch(url);
+
+
+    if (!response.ok) {
+
+      throw new Error(
+        "Wikipedia HTTP " +
+        response.status
       );
-
-
-    /*
-     * Then search important terms from
-     * the title + abstract.
-     */
-
-    const keywords =
-      extractWikipediaKeywords(
-        paper
-      );
-
-
-    /*
-     * Search several of the strongest terms.
-     * This gives much better results than
-     * simply searching the whole abstract.
-     */
-
-    for (
-      let i = 0;
-      i < Math.min(
-        keywords.length,
-        4
-      );
-      i++
-    ) {
-
-      if (
-        results.length >= 8
-      ) {
-
-        break;
-      }
-
-
-      const extra =
-        await wikipediaSearch(
-          keywords[i],
-          3
-        );
-
-
-      results =
-        mergeWikipediaResults(
-          results,
-          extra
-        );
     }
 
 
-    /*
-     * If title search found nothing useful,
-     * search a compact keyword combination.
-     */
-
-    if (
-      results.length < 5 &&
-      keywords.length >= 2
-    ) {
-
-      const keywordQuery =
-        keywords
-          .slice(0, 4)
-          .join(" ");
+    const data =
+      await response.json();
 
 
-      const extra =
-        await wikipediaSearch(
-          keywordQuery,
-          10
-        );
+    const results =
+      data &&
+      data.query &&
+      Array.isArray(
+        data.query.search
+      )
+        ? data.query.search
+        : [];
 
 
-      results =
-        mergeWikipediaResults(
-          results,
-          extra
-        );
-    }
-
-
-    results =
-      results.slice(
-        0,
-        5
-      );
-
-
-    if (!results.length) {
-
-      wikiList.innerHTML =
-        '<div class="wiki-empty">' +
-        "No related Wikipedia articles found." +
-        "</div>";
-
-      return;
-    }
-
-
-    renderWikipediaResults(
-      results
+    renderWikipediaArticles(
+      results.slice(0, 5)
     );
 
 
@@ -3130,11 +2569,100 @@ async function loadRelatedWikipedia(
     );
 
 
-    wikiList.innerHTML =
-      '<div class="wiki-error">' +
-      "Could not load related articles." +
+    wikipediaList.innerHTML =
+      '<div class="wiki-placeholder">' +
+      "Wikipedia articles could not be loaded." +
       "</div>";
   }
+}
+
+
+// =========================================================
+// WIKIPEDIA QUERY BUILDER
+// =========================================================
+
+function buildWikipediaQuery(
+  paper
+) {
+
+  if (!paper) {
+    return "";
+  }
+
+
+  const title =
+    (paper.title || "")
+      .replace(
+        /[^\w\s-]/g,
+        " "
+      )
+      .replace(
+        /\s+/g,
+        " "
+      )
+      .trim();
+
+
+  if (title) {
+
+    // Wikipedia handles a full research title
+    // surprisingly well, but we also remove very
+    // generic academic words.
+
+    const generic = new Set([
+
+      "a",
+      "an",
+      "the",
+      "and",
+      "or",
+      "of",
+      "for",
+      "in",
+      "on",
+      "with",
+      "using",
+      "based",
+      "toward",
+      "towards",
+      "study",
+      "studies",
+      "analysis",
+      "approach",
+      "method",
+      "methods",
+      "new",
+      "novel"
+
+    ]);
+
+
+    const titleWords =
+      title
+        .split(/\s+/)
+        .filter(
+          function (word) {
+
+            return (
+              word.length > 3 &&
+              !generic.has(
+                word.toLowerCase()
+              )
+            );
+
+          }
+        )
+        .slice(0, 8);
+
+
+    if (titleWords.length) {
+
+      return titleWords.join(" ");
+    }
+  }
+
+
+  return "";
 }
 
 
@@ -3142,96 +2670,126 @@ async function loadRelatedWikipedia(
 // RENDER WIKIPEDIA
 // =========================================================
 
-function renderWikipediaResults(
+function renderWikipediaArticles(
   articles
 ) {
 
-  if (!wikiList) {
+  if (!wikipediaList) {
+    return;
+  }
+
+
+  wikipediaList.innerHTML =
+    "";
+
+
+  if (!articles.length) {
+
+    wikipediaList.innerHTML =
+      '<div class="wiki-placeholder">' +
+      "No closely related Wikipedia articles found." +
+      "</div>";
 
     return;
   }
 
 
-  wikiList.innerHTML =
-    "";
+  articles.forEach(
+    function (article) {
 
-
-  articles
-    .slice(0, 5)
-    .forEach(
-      function (article) {
-
-        const link =
-          document.createElement(
-            "a"
-          );
-
-
-        link.className =
-          "wiki-item";
-
-
-        link.href =
-          article.url;
-
-
-        link.target =
-          "_blank";
-
-
-        link.rel =
-          "noopener noreferrer";
-
-
-        const title =
-          document.createElement(
-            "span"
-          );
-
-
-        title.className =
-          "wiki-title";
-
-
-        title.textContent =
-          article.title;
-
-
-        link.appendChild(
-          title
+      const link =
+        document.createElement(
+          "a"
         );
 
 
-        if (
-          article.description
-        ) {
-
-          const description =
-            document.createElement(
-              "span"
-            );
+      link.className =
+        "wiki-item";
 
 
-          description.className =
-            "wiki-description";
+      link.target =
+        "_blank";
 
 
-          description.textContent =
-            article.description;
+      link.rel =
+        "noopener";
 
 
-          link.appendChild(
-            description
-          );
-        }
+      const title =
+        article.title ||
+        "";
 
 
-        wikiList.appendChild(
-          link
+      link.href =
+        "https://en.wikipedia.org/wiki/" +
+        encodeURIComponent(
+          title.replace(
+            / /g,
+            "_"
+          )
         );
 
-      }
+
+      const cleanSnippet =
+        stripHtml(
+          article.snippet || ""
+        );
+
+
+      link.innerHTML =
+
+        '<span class="wiki-item-title">' +
+        escapeHtml(title) +
+        "</span>" +
+
+        (
+          cleanSnippet
+            ? '<span class="wiki-item-description">' +
+              escapeHtml(
+                cleanSnippet
+              ) +
+              "</span>"
+            : ""
+        );
+
+
+      wikipediaList.appendChild(
+        link
+      );
+
+    }
+  );
+}
+
+
+// =========================================================
+// STRIP HTML
+// =========================================================
+
+function stripHtml(
+  html
+) {
+
+  const div =
+    document.createElement(
+      "div"
     );
+
+
+  div.innerHTML =
+    html;
+
+
+  return (
+    div.textContent ||
+    div.innerText ||
+    ""
+  )
+  .replace(
+    /\s+/g,
+    " "
+  )
+  .trim();
 }
 
 
@@ -3239,30 +2797,45 @@ function renderWikipediaResults(
 // EVENTS
 // =========================================================
 
+
+// Category changed:
+// 1. Load newest main paper.
+// 2. Load five latest papers.
+// 3. Clear old search state.
+
 if (categorySelect) {
 
   categorySelect.addEventListener(
     "change",
     function () {
 
-      const category =
-        categorySelect.value;
+      lastIsAll =
+        false;
+
+      currentStart =
+        0;
+
+
+      if (resultsSection) {
+        resultsSection.hidden =
+          true;
+      }
+
+
+      loadLatestPapers();
 
 
       loadPaper(
-        category,
+        categorySelect.value,
         false
-      );
-
-
-      loadLatestPapers(
-        category
       );
 
     }
   );
 }
 
+
+// Search
 
 if (searchBtn) {
 
@@ -3273,15 +2846,14 @@ if (searchBtn) {
       lastIsAll =
         false;
 
-
-      runSearch(
-        0
-      );
+      runSearch(0);
 
     }
   );
 }
 
+
+// Search all categories
 
 if (searchAllBtn) {
 
@@ -3292,15 +2864,14 @@ if (searchAllBtn) {
       lastIsAll =
         true;
 
-
-      runSearch(
-        0
-      );
+      runSearch(0);
 
     }
   );
 }
 
+
+// Enter search
 
 if (keywordInput) {
 
@@ -3309,23 +2880,22 @@ if (keywordInput) {
     function (event) {
 
       if (
-        event.key ===
-        "Enter"
+        event.key === "Enter"
       ) {
 
         lastIsAll =
           false;
 
+        runSearch(0);
 
-        runSearch(
-          0
-        );
       }
 
     }
   );
 }
 
+
+// Previous
 
 if (prevBtn) {
 
@@ -3342,12 +2912,15 @@ if (prevBtn) {
           currentStart -
           PAGE_SIZE
         );
+
       }
 
     }
   );
 }
 
+
+// Next
 
 if (nextBtn) {
 
@@ -3365,17 +2938,13 @@ if (nextBtn) {
 }
 
 
+// Random
+
 if (randomPaperBtn) {
 
   randomPaperBtn.addEventListener(
     "click",
     function () {
-
-      if (!categorySelect) {
-
-        return;
-      }
-
 
       loadPaper(
         categorySelect.value,
@@ -3386,6 +2955,8 @@ if (randomPaperBtn) {
   );
 }
 
+
+// Sum up
 
 if (summarizeBtn) {
 
@@ -3399,29 +2970,26 @@ if (summarizeBtn) {
 // =========================================================
 // START
 // =========================================================
+//
+// IMPORTANT:
+// Both calls happen on startup.
+//
+// Main:
+// newest paper.
+//
+// Left:
+// five newest papers.
+//
+// They are independent, so the sidebar does not get
+// accidentally replaced when the main paper changes.
+// =========================================================
 
 if (categorySelect) {
 
-  const category =
-    categorySelect.value;
-
-
-  /*
-   * Main paper.
-   */
+  loadLatestPapers();
 
   loadPaper(
-    category,
+    categorySelect.value,
     false
-  );
-
-
-  /*
-   * Five newest papers for the
-   * selected category.
-   */
-
-  loadLatestPapers(
-    category
   );
 }
