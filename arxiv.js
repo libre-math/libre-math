@@ -328,11 +328,10 @@ function showPaper(paper) {
   }
 
 
-  if (abstractEl) {
-
-    abstractEl.textContent =
-      paper.summary || "";
-  }
+ if (abstractEl) {
+  abstractEl.innerHTML =
+    renderBasicLatex(paper.summary || "");
+}
 
 
   const absLink =
@@ -570,7 +569,43 @@ function escapeHtml(str) {
     );
 }
 
+// =========================================================
+// BASIC LATEX → HTML (subscripts / superscripts)
+// =========================================================
+function renderBasicLatex(text) {
+  if (!text) return "";
 
+  // Escape HTML first so we stay safe
+  let html = escapeHtml(text);
+
+  // Subscripts: $_{...}$  or  $_...$
+  html = html.replace(
+    /\$\_\{([^}]+)\}\$/g,
+    "<sub>$1</sub>"
+  );
+  html = html.replace(
+    /\$\_([A-Za-z0-9+\-]+)/g,
+    "<sub>$1</sub>"
+  );
+
+  // Superscripts: $^{...}$  or  $^...$
+  html = html.replace(
+    /\$\^\{([^}]+)\}\$/g,
+    "<sup>$1</sup>"
+  );
+  html = html.replace(
+    /\$\^([A-Za-z0-9+\-]+)/g,
+    "<sup>$1</sup>"
+  );
+
+  // Simple math mode leftovers: $x$ → just the content (or italic)
+  html = html.replace(
+    /\$([^$]+)\$/g,
+    "<i>$1</i>"
+  );
+
+  return html;
+}
 // =========================================================
 // CATEGORY QUERY
 //
