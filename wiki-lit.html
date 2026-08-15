@@ -168,9 +168,10 @@
     .mono { font-family: "IBM Plex Mono", monospace; color: var(--text-muted); }
     .book-title { margin: 0 0 0.3rem; font-size: 1.8rem; font-weight: 700; line-height: 1.2; letter-spacing: -0.01em; }
     .book-author { margin: 0 0 0.35rem; font-size: 1.1rem; color: var(--text-muted); }
-    .book-summary { font-size: 1.06rem; line-height: 1.78; text-align: justify; margin: 1rem 0 1.5rem; }
-    .book-plot { font-size: 1.06rem; line-height: 1.78; text-align: justify; margin: 1rem 0 1.5rem; }
-    .book-plot-label, .book-summary-label {
+    .book-section {
+      margin: 1.2rem 0 0.8rem;
+    }
+    .book-section-label {
       font-family: "IBM Plex Mono", monospace;
       font-size: 0.7rem;
       letter-spacing: 0.1em;
@@ -179,6 +180,15 @@
       font-weight: 500;
       display: block;
       margin-bottom: 0.3rem;
+    }
+    .book-text {
+      font-size: 1.06rem;
+      line-height: 1.78;
+      text-align: justify;
+      margin: 0.5rem 0 0.8rem;
+      padding: 0.5rem 0.8rem;
+      background: var(--bg-alt);
+      border-left: 3px solid var(--accent);
     }
     .book-actions { display: flex; gap: 0.55rem; flex-wrap: wrap; margin-top: 0.5rem; }
 
@@ -329,11 +339,15 @@
             <h2 id="book-title" class="book-title"></h2>
             <p id="book-author" class="book-author mono"></p>
             
-            <span class="book-summary-label">📖 Summary</span>
-            <div id="book-summary" class="book-summary"></div>
+            <div class="book-section">
+              <span class="book-section-label">📖 Summary</span>
+              <div id="book-summary" class="book-text"></div>
+            </div>
             
-            <span class="book-plot-label">📜 Plot</span>
-            <div id="book-plot" class="book-plot"></div>
+            <div class="book-section">
+              <span class="book-section-label">📜 Plot</span>
+              <div id="book-plot" class="book-text"></div>
+            </div>
             
             <div class="book-actions">
               <a id="book-wiki-link" class="btn" target="_blank">Read on Wikipedia</a>
@@ -409,16 +423,10 @@
       poetry_books: [
         'The Divine Comedy', 'Paradise Lost', 'The Iliad', 'The Odyssey',
         'The Aeneid', 'Beowulf', 'The Faerie Queene', 'Don Juan',
-        'The Rime of the Ancient Mariner', 'Ode to a Nightingale',
-        'The Raven', 'Leaves of Grass', 'The Waste Land',
-        'Howl', 'Sonnets from the Portuguese', 'Ariel',
-        'The Love Song of J. Alfred Prufrock', 'The Cantos',
-        'Inferno', 'Purgatorio', 'Paradiso', 'The Canterbury Tales'
+        'The Rime of the Ancient Mariner', 'Leaves of Grass', 'The Waste Land',
+        'Howl', 'Ariel', 'The Cantos', 'The Canterbury Tales'
       ]
     };
-
-    // All books flattened for search
-    const ALL_BOOKS = Object.values(BOOKS_BY_CATEGORY).flat();
 
     const categorySelect = document.getElementById('category-select');
     const keywordInput = document.getElementById('keyword-input');
@@ -432,11 +440,9 @@
     const nextBtn = document.getElementById('next-btn');
     const themeToggle = document.getElementById('theme-toggle');
     const randomBookBtn = document.getElementById('random-book-btn');
-    const summaryBox = document.querySelector('.summary-box');
 
     let currentStart = 0;
     const PAGE_SIZE = 10;
-    let currentBooks = [];
     let currentCategory = 'classic_novels';
 
     // ---------- Theme ----------
@@ -465,32 +471,94 @@
       return await res.json();
     }
 
+    // Fetch full page content to extract plot
     async function fetchWikipediaFull(title) {
-      const url = `https://en.wikipedia.org/api/rest_v1/page/html/${encodeURIComponent(title)}`;
+      const url = `https://en.wikipedia.org/w/api.php?action=parse&page=${encodeURIComponent(title)}&format=json&origin=*`;
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.text();
+      const data = await res.json();
+      return data.parse?.text?.['*'] || '';
     }
 
-    // ---------- Parse book data ----------
-    function parseBookData(data, title) {
-      const extract = data.extract || 'No summary available.';
-      const extractHtml = data.extract_html || '';
-      
-      // Try to find plot from the HTML
-      let plot = '';
-      if (data.extract_html) {
-        // Simple plot extraction - look for "Plot" section
-        const plotMatch = data.extract_html.match(/Plot<\/[^>]+>(.*?)(?=<[hH]|$)/s);
-        if (plotMatch) plot = plotMatch[1].replace(/<[^>]+>/g, ' ').trim();
-      }
-      if (!plot) {
-        // Fallback: take a longer excerpt
-        const words = extract.split(' ');
-        plot = words.length > 100 ? words.slice(0, 100).join(' ') + '…' : extract;
-      }
+    // ---------- Extract plot from HTML ----------
+    function extractPlotFromHTML(html, title) {
+      if (!html) return '';
 
-      // Basic info extraction
+      // Create a DOM parser to parse the HTML
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      
+      // Look for plot sections with various headings
+      const plotKeywords = ['Plot', 'Synopsis', 'Story', 'Summary'];
+      let plotText = '';
+      
+      // Find all headings
+      const headings = doc.querySelectorAll('h2, h3, h4');
+      
+      for (let heading of headings) {
+        const text = heading.textContent.toLowerCase().trim();
+        // Check if this is a plot section
+        const isPlot = plotKeywords.some(keyword => text.includes(keyword.toLowerCase()));
+        
+        if (isPlot) {
+          // Get all content after this heading until the next heading
+          let current = heading.nextElementSibling;
+          let content = '';
+          
+          while (current && !['H2', 'H3', 'H4'].includes(current.tagName)) {
+            if (current.tagName === 'P') {
+              content += current.textContent + ' ';
+            }
+            // Also check for paragraphs inside divs
+            if (current.tagName === 'DIV') {
+              const paragraphs = current.querySelectorAll('p');
+              for (let p of paragraphs) {
+                content += p.textContent + ' ';
+              }
+            }
+            current = current.nextElementSibling;
+          }
+          
+          if (content.trim()) {
+            plotText = content.trim();
+            break;
+          }
+        }
+      }
+      
+      // If no plot found, try the description from the summary
+      if (!plotText && title) {
+        // Use the summary as fallback but only first sentence or two
+        const summaryUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
+        try {
+          const res = await fetch(summaryUrl);
+          if (res.ok) {
+            const data = await res.json();
+            const extract = data.extract || '';
+            // Take first 2 sentences or 300 chars as plot
+            const sentences = extract.match(/[^.!?]+[.!?]+/g);
+            if (sentences) {
+              plotText = sentences.slice(0, 3).join(' ');
+            } else {
+              plotText = extract.slice(0, 400);
+            }
+          }
+        } catch(e) {}
+      }
+      
+      // Clean up
+      plotText = plotText.replace(/\s+/g, ' ').trim();
+      
+      // If still empty, provide a placeholder
+      if (!plotText) {
+        return 'No plot summary available for this book.';
+      }
+      
+      return plotText;
+    }
+
+    // ---------- Extract info from HTML ----------
+    function extractInfoFromHTML(html) {
       const info = {
         author: 'Unknown',
         born: '',
@@ -501,30 +569,95 @@
         language: 'English',
         related: ''
       };
-
-      // Try to get more info from the API
-      // We'll use the data.description if available
-      if (data.description) {
-        const desc = data.description;
-        if (desc.includes('by ')) {
-          const authorMatch = desc.match(/by\s+([^,]+)/);
-          if (authorMatch) info.author = authorMatch[1].trim();
+      
+      if (!html) return info;
+      
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      
+      // Find the infobox
+      const infobox = doc.querySelector('.infobox');
+      if (!infobox) return info;
+      
+      // Extract data from infobox rows
+      const rows = infobox.querySelectorAll('tr');
+      
+      for (let row of rows) {
+        const th = row.querySelector('th');
+        const td = row.querySelector('td');
+        if (!th || !td) continue;
+        
+        const label = th.textContent.trim().toLowerCase();
+        const value = td.textContent.trim().replace(/\s+/g, ' ');
+        
+        if (label.includes('author') || label.includes('writer')) {
+          info.author = value;
+        } else if (label.includes('birth') || label.includes('born')) {
+          info.born = value;
+        } else if (label.includes('death') || label.includes('died')) {
+          info.died = value;
+        } else if (label.includes('publication') || label.includes('published') || label.includes('release')) {
+          info.published = value;
+        } else if (label.includes('genre')) {
+          info.genre = value;
+        } else if (label.includes('pages') || label.includes('page')) {
+          info.pages = value;
+        } else if (label.includes('language')) {
+          info.language = value;
+        } else if (label.includes('related') || label.includes('followed') || label.includes('preceded')) {
+          info.related = value;
         }
       }
+      
+      return info;
+    }
 
+    // ---------- Parse book data ----------
+    async function parseBookData(title) {
+      // Get summary
+      const summaryData = await fetchWikipediaPage(title);
+      const extract = summaryData.extract || 'No summary available.';
+      
+      // Get full HTML
+      let html = '';
+      try {
+        html = await fetchWikipediaFull(title);
+      } catch(e) {
+        console.log('Could not fetch full page for plot:', e);
+      }
+      
+      // Extract plot from HTML
+      let plot = '';
+      if (html) {
+        plot = extractPlotFromHTML(html, title);
+      }
+      
+      // If plot is empty, use a fallback
+      if (!plot || plot === 'No plot summary available for this book.' || plot === '') {
+        const sentences = extract.match(/[^.!?]+[.!?]+/g);
+        if (sentences && sentences.length > 1) {
+          plot = sentences.slice(1, 4).join(' ');
+        } else {
+          plot = extract.slice(0, 400) + '…';
+        }
+      }
+      
+      // Extract info from HTML
+      const info = html ? extractInfoFromHTML(html) : {};
+      
       return {
         title: title,
-        author: info.author,
+        author: info.author || 'Unknown',
         summary: extract,
         plot: plot,
-        published: info.published,
-        genre: info.genre,
-        pages: info.pages,
-        language: info.language,
-        related: info.related,
-        url: data.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(title)}`,
-        born: info.born,
-        died: info.died
+        published: info.published || '',
+        genre: info.genre || '',
+        pages: info.pages || '',
+        language: info.language || 'English',
+        related: info.related || '',
+        url: `https://en.wikipedia.org/wiki/${encodeURIComponent(title)}`,
+        born: info.born || '',
+        died: info.died || ''
       };
     }
 
@@ -571,8 +704,7 @@
       const randomTitle = books[Math.floor(Math.random() * books.length)];
       
       try {
-        const data = await fetchWikipediaPage(randomTitle);
-        const book = parseBookData(data, randomTitle);
+        const book = await parseBookData(randomTitle);
         showBook(book);
       } catch (err) {
         console.error('Error loading book:', err);
@@ -603,7 +735,7 @@
         }
         
         const data = await res.json();
-        const book = parseBookData(data, data.title || keyword);
+        const book = await parseBookData(data.title || keyword);
         
         resultsBox.innerHTML = '';
         const div = document.createElement('div');
