@@ -225,7 +225,6 @@ async function runSearch(start) {
   }
 }
 
-// ---------- Hugging Face free summary (no key) ----------
 async function summarizeAbstract() {
   const abstractEl = document.getElementById("paper-abstract");
   const abstract = abstractEl ? abstractEl.textContent.trim() : "";
@@ -240,43 +239,40 @@ async function summarizeAbstract() {
 
   if (summaryBox) {
     summaryBox.innerHTML =
-      '<p class="summary-loading">Making this easy to understand…</p>';
+      '<p class="summary-loading">Explaining it simply…</p>';
   }
 
   if (summarizeBtn) summarizeBtn.disabled = true;
 
-  /*
-   * FLAN-T5 is an instruction-following model.
-   * This is much more suitable here than DistilBART, which is mainly
-   * trained to summarize news articles and tends to copy the source.
-   */
   const model = "google/flan-t5-base";
-  const url =
-    "https://api-inference.huggingface.co/models/" + model;
 
   const prompt = `
-Explain the scientific abstract below as if you are explaining it to a 5-year-old.
+Explain this scientific paper like you are explaining it to a 5-year-old.
 
-Rules:
-- Do NOT copy sentences from the abstract.
-- Do NOT use complicated scientific words.
-- If you must use a scientific word, explain it using very simple words.
-- Use very short sentences.
-- Explain what the researchers are trying to learn.
-- Explain what they did in simple words.
-- Explain what they discovered.
-- Explain why the discovery is useful or interesting.
-- Imagine the reader knows almost nothing about science.
-- Use a simple example or comparison when helpful.
-- Do not mention that you are an AI.
-- Do not say "the abstract says".
-- Write 4 to 7 short sentences.
-- Keep the whole answer under 100 words.
+IMPORTANT RULES:
+- Do NOT copy the abstract.
+- Do NOT repeat the original sentences.
+- Use very simple everyday words.
+- Use short sentences.
+- Avoid scientific jargon.
+- Explain difficult ideas using simple examples.
+- Say what the scientists wanted to find out.
+- Say what they did.
+- Say what they found.
+- Say why it matters.
+- Assume the reader knows almost nothing about science.
+- Write only 4 to 6 short sentences.
+- Keep it under 100 words.
 
-Scientific abstract:
-
+ABSTRACT:
 ${abstract}
 `.trim();
+
+  const hfUrl =
+    "https://api-inference.huggingface.co/models/" + model;
+
+  // Send the request through the same CORS proxy used for arXiv.
+  const url = PROXY + encodeURIComponent(hfUrl);
 
   try {
     const res = await fetch(url, {
@@ -287,18 +283,23 @@ ${abstract}
       body: JSON.stringify({
         inputs: prompt,
         parameters: {
-          max_new_tokens: 140,
-          min_new_tokens: 45,
+          max_new_tokens: 120,
+          min_new_tokens: 40,
           do_sample: false
         }
       })
     });
 
     if (!res.ok) {
-      throw new Error("HF status " + res.status);
+      const errorText = await res.text();
+      throw new Error(
+        "Hugging Face HTTP " + res.status + ": " + errorText
+      );
     }
 
     const data = await res.json();
+
+    console.log("Hugging Face response:", data);
 
     let summary = "";
 
@@ -314,32 +315,21 @@ ${abstract}
     summary = String(summary).trim();
 
     if (!summary) {
-      throw new Error("The model returned an empty answer.");
+      throw new Error("The model returned no summary.");
     }
 
-    /*
-     * Sometimes a model can accidentally return the prompt together
-     * with its answer. Remove it if that happens.
-     */
-    if (summary.includes("Scientific abstract:")) {
-      summary = summary
-        .split("Scientific abstract:")
-        .pop()
-        .trim();
+    // Sometimes the model repeats part of the prompt.
+    if (summary.includes("ABSTRACT:")) {
+      summary = summary.split("ABSTRACT:").pop().trim();
     }
 
-    /*
-     * Remove quotation marks that sometimes appear around the answer.
-     */
     summary = summary.replace(/^["“]+|["”]+$/g, "").trim();
 
-    /*
-     * Keep the answer short.
-     */
+    // Keep it genuinely short.
     const words = summary.split(/\s+/);
 
-    if (words.length > 110) {
-      summary = words.slice(0, 100).join(" ") + "…";
+    if (words.length > 100) {
+      summary = words.slice(0, 95).join(" ") + "…";
     }
 
     if (summaryBox) {
@@ -352,22 +342,18 @@ ${abstract}
   } catch (err) {
     console.error("Summary error:", err);
 
-    /*
-     * IMPORTANT:
-     * Do not use the first sentences of the abstract as a fallback.
-     * That was the reason the old version looked like it was simply
-     * copying the abstract.
-     */
     if (summaryBox) {
       summaryBox.innerHTML =
         '<p class="summary-placeholder">' +
-        "The simple summary could not be generated right now. " +
-        "Please try the button again." +
+        "I could not make the simple explanation. " +
+        "Please try again in a moment." +
         "</p>";
     }
 
   } finally {
-    if (summarizeBtn) summarizeBtn.disabled = false;
+    if (summarizeBtn) {
+      summarizeBtn.disabled = false;
+    }
   }
 }
 // ---------- Events ----------
