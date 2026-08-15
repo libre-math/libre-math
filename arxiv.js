@@ -269,6 +269,162 @@ function summarizeAbstract() {
     if (summarizeBtn) summarizeBtn.disabled = false;
   }, 50);
 }
+function simplifyWithCompromise(text) {
+  if (typeof nlp !== "function") {
+    throw new Error("Compromise.js was not loaded.");
+  }
+
+  const doc = nlp(text);
+
+  let sentences = doc.sentences().out("array");
+
+  if (!sentences.length) {
+    return text;
+  }
+
+  // Clean sentences.
+  sentences = sentences
+    .map(function (sentence) {
+      return sentence
+        .replace(/\[[0-9,\-\s]+\]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+    })
+    .filter(function (sentence) {
+      return sentence.length > 25;
+    });
+
+  const importantTerms = [
+    "study",
+    "investigate",
+    "examine",
+    "analyze",
+    "analyse",
+    "propose",
+    "present",
+    "develop",
+    "introduce",
+    "show",
+    "find",
+    "result",
+    "experiment",
+    "data",
+    "model",
+    "method",
+    "approach",
+    "performance",
+    "improve",
+    "improvement",
+    "reduce",
+    "increase",
+    "predict",
+    "prediction"
+  ];
+
+  function sentenceScore(sentence, index) {
+    const lower = sentence.toLowerCase();
+    let score = 0;
+
+    importantTerms.forEach(function (term) {
+      if (lower.includes(term)) {
+        score += 2;
+      }
+    });
+
+    // First sentence usually introduces the problem.
+    if (index === 0) score += 4;
+
+    // Second sentence often explains the approach.
+    if (index === 1) score += 2;
+
+    // Prefer shorter sentences.
+    if (sentence.length < 220) {
+      score += 2;
+    } else if (sentence.length > 400) {
+      score -= 2;
+    }
+
+    return score;
+  }
+
+  const ranked = sentences
+    .map(function (sentence, index) {
+      return {
+        sentence: sentence,
+        index: index,
+        score: sentenceScore(sentence, index)
+      };
+    })
+    .sort(function (a, b) {
+      return b.score - a.score;
+    });
+
+  // Select up to 4 important sentences.
+  const selected = ranked
+    .slice(0, 4)
+    .sort(function (a, b) {
+      return a.index - b.index;
+    })
+    .map(function (item) {
+      return simplifySentence(item.sentence);
+    });
+
+  return selected.join(" ");
+}
+function simplifySentence(sentence) {
+  return sentence
+
+    // Academic phrases
+    .replace(/\bwe investigate\b/gi, "we study")
+    .replace(/\bwe examine\b/gi, "we study")
+    .replace(/\bwe analyze\b/gi, "we study")
+    .replace(/\bwe analyse\b/gi, "we study")
+    .replace(/\bwe propose\b/gi, "we suggest")
+    .replace(/\bwe introduce\b/gi, "we present")
+    .replace(/\bwe develop\b/gi, "we create")
+    .replace(/\bwe demonstrate\b/gi, "we show")
+    .replace(/\bwe establish\b/gi, "we show")
+    .replace(/\bwe utilize\b/gi, "we use")
+
+    // Academic vocabulary
+    .replace(/\butilize\b/gi, "use")
+    .replace(/\butilizes\b/gi, "uses")
+    .replace(/\butilized\b/gi, "used")
+    .replace(/\bmethodology\b/gi, "method")
+    .replace(/\bmethodologies\b/gi, "methods")
+    .replace(/\bframework\b/gi, "system")
+    .replace(/\bframeworks\b/gi, "systems")
+    .replace(/\bnovel\b/gi, "new")
+    .replace(/\bempirical\b/gi, "based on real data")
+    .replace(/\bquantitative\b/gi, "based on numbers")
+    .replace(/\bqualitative\b/gi, "based on descriptions")
+    .replace(/\bfeasible\b/gi, "possible")
+    .replace(/\brobust\b/gi, "reliable")
+    .replace(/\bcomplexity\b/gi, "difficulty")
+    .replace(/\bcomplex\b/gi, "complicated")
+    .replace(/\boptimal\b/gi, "best")
+
+    // Long phrases
+    .replace(/\bin order to\b/gi, "to")
+    .replace(/\bwith respect to\b/gi, "about")
+    .replace(/\bin the context of\b/gi, "in")
+    .replace(/\bprior to\b/gi, "before")
+    .replace(/\bsubsequently\b/gi, "later")
+    .replace(/\bapproximately\b/gi, "about")
+    .replace(/\ba large number of\b/gi, "many")
+    .replace(/\ba small number of\b/gi, "few")
+
+    // Connectors
+    .replace(/\bfurthermore\b/gi, "also")
+    .replace(/\bmoreover\b/gi, "also")
+    .replace(/\btherefore\b/gi, "so")
+    .replace(/\bconsequently\b/gi, "so")
+    .replace(/\bnevertheless\b/gi, "however")
+    .replace(/\bthus\b/gi, "so")
+
+    .replace(/\s+/g, " ")
+    .trim();
+}
 // ---------- Events ----------
 if (categorySelect) {
   categorySelect.addEventListener("change", function () {
