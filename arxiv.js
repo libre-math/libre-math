@@ -2,45 +2,123 @@
 // arXiv Technical Report
 // Main JavaScript
 //
-// Required script order in arxiv.html:
+// Files required:
 //
 // <script src="scientific-dictionary.js"></script>
 // <script src="arxiv.js"></script>
 //
-// No AI is used for the abstract simplifier.
+// No Compromise.
+// No external NLP library.
+// No AI API.
+// No subscription.
 // =========================================================
 
 
-const API = "https://export.arxiv.org/api/query";
-const PROXY = "https://corsproxy.io/?";
+const API =
+  "https://export.arxiv.org/api/query";
+
+const PROXY =
+  "https://corsproxy.io/?";
+
+const WIKIPEDIA_API =
+  "https://en.wikipedia.org/w/api.php";
 
 
 // =========================================================
 // DOM ELEMENTS
 // =========================================================
 
-const categorySelect = document.getElementById("category-select");
-const keywordInput = document.getElementById("keyword-input");
-const searchBtn = document.getElementById("search-btn");
-const searchAllBtn = document.getElementById("search-all-btn");
+const categorySelect =
+  document.getElementById(
+    "category-select"
+  );
 
-const paperStatus = document.getElementById("paper-status");
-const paperContent = document.getElementById("paper-content");
+const keywordInput =
+  document.getElementById(
+    "keyword-input"
+  );
 
-const latestPapers = document.getElementById("latest-papers");
+const searchBtn =
+  document.getElementById(
+    "search-btn"
+  );
 
-const resultsSection = document.getElementById("results-section");
-const resultsBox = document.getElementById("results-box");
-const resultsInfo = document.getElementById("results-info");
+const searchAllBtn =
+  document.getElementById(
+    "search-all-btn"
+  );
 
-const prevBtn = document.getElementById("prev-btn");
-const nextBtn = document.getElementById("next-btn");
 
-const themeToggle = document.getElementById("theme-toggle");
-const randomPaperBtn = document.getElementById("random-paper-btn");
+const paperStatus =
+  document.getElementById(
+    "paper-status"
+  );
 
-const summarizeBtn = document.getElementById("summarize-btn");
-const summaryBox = document.getElementById("summary-box");
+const paperContent =
+  document.getElementById(
+    "paper-content"
+  );
+
+
+const resultsSection =
+  document.getElementById(
+    "results-section"
+  );
+
+const resultsBox =
+  document.getElementById(
+    "results-box"
+  );
+
+const resultsInfo =
+  document.getElementById(
+    "results-info"
+  );
+
+
+const prevBtn =
+  document.getElementById(
+    "prev-btn"
+  );
+
+const nextBtn =
+  document.getElementById(
+    "next-btn"
+  );
+
+
+const themeToggle =
+  document.getElementById(
+    "theme-toggle"
+  );
+
+const randomPaperBtn =
+  document.getElementById(
+    "random-paper-btn"
+  );
+
+
+const summarizeBtn =
+  document.getElementById(
+    "summarize-btn"
+  );
+
+const summaryBox =
+  document.getElementById(
+    "summary-box"
+  );
+
+
+const latestList =
+  document.getElementById(
+    "latest-list"
+  );
+
+
+const wikiList =
+  document.getElementById(
+    "wiki-list"
+  );
 
 
 // =========================================================
@@ -48,10 +126,12 @@ const summaryBox = document.getElementById("summary-box");
 // =========================================================
 
 let currentStart = 0;
+
 let lastIsAll = false;
 
+let currentPaper = null;
+
 const PAGE_SIZE = 10;
-const LATEST_COUNT = 5;
 
 
 // =========================================================
@@ -60,22 +140,33 @@ const LATEST_COUNT = 5;
 
 function applyTheme(theme) {
 
-  document.documentElement.setAttribute(
-    "data-theme",
-    theme
-  );
+  document.documentElement
+    .setAttribute(
+      "data-theme",
+      theme
+    );
+
 
   if (themeToggle) {
+
     themeToggle.textContent =
-      theme === "dark" ? "Light" : "Dark";
+      theme === "dark"
+        ? "Light"
+        : "Dark";
   }
 
+
   try {
+
     localStorage.setItem(
       "arxiv-theme",
       theme
     );
-  } catch (e) {}
+
+  } catch (error) {
+
+    // Ignore storage errors.
+  }
 }
 
 
@@ -83,11 +174,16 @@ function applyTheme(theme) {
 
   let saved = "light";
 
+
   try {
+
     saved =
-      localStorage.getItem("arxiv-theme") ||
-      "light";
-  } catch (e) {}
+      localStorage.getItem(
+        "arxiv-theme"
+      ) || "light";
+
+  } catch (error) {}
+
 
   applyTheme(saved);
 
@@ -101,18 +197,20 @@ if (themeToggle) {
     function () {
 
       const current =
-        document.documentElement.getAttribute(
-          "data-theme"
-        ) || "light";
+        document.documentElement
+          .getAttribute(
+            "data-theme"
+          ) || "light";
+
 
       applyTheme(
         current === "dark"
           ? "light"
           : "dark"
       );
+
     }
   );
-
 }
 
 
@@ -123,13 +221,17 @@ if (themeToggle) {
 function showStatus(message) {
 
   if (paperContent) {
+
     paperContent.hidden = true;
   }
+
 
   if (paperStatus) {
 
     paperStatus.hidden = false;
-    paperStatus.textContent = message;
+
+    paperStatus.textContent =
+      message;
   }
 }
 
@@ -140,39 +242,103 @@ function showStatus(message) {
 
 function showPaper(paper) {
 
+  currentPaper = paper;
+
+
   if (paperStatus) {
+
     paperStatus.hidden = true;
   }
 
+
   if (paperContent) {
+
     paperContent.hidden = false;
   }
 
 
-  document.getElementById("paper-id").textContent =
-    paper.arxivId || "";
+  const paperId =
+    document.getElementById(
+      "paper-id"
+    );
 
-  document.getElementById("paper-date").textContent =
-    paper.published || "";
+  const paperDate =
+    document.getElementById(
+      "paper-date"
+    );
 
-  document.getElementById("paper-cats").textContent =
-    paper.cats || "";
+  const paperCats =
+    document.getElementById(
+      "paper-cats"
+    );
 
-  document.getElementById("paper-title").textContent =
-    paper.title || "";
+  const paperTitle =
+    document.getElementById(
+      "paper-title"
+    );
 
-  document.getElementById("paper-authors").textContent =
-    paper.authors || "";
+  const paperAuthors =
+    document.getElementById(
+      "paper-authors"
+    );
 
-  document.getElementById("paper-abstract").textContent =
-    paper.summary || "";
+  const paperAbstract =
+    document.getElementById(
+      "paper-abstract"
+    );
+
+
+  if (paperId) {
+
+    paperId.textContent =
+      paper.arxivId || "";
+  }
+
+
+  if (paperDate) {
+
+    paperDate.textContent =
+      paper.published || "";
+  }
+
+
+  if (paperCats) {
+
+    paperCats.textContent =
+      paper.cats || "";
+  }
+
+
+  if (paperTitle) {
+
+    paperTitle.textContent =
+      paper.title || "";
+  }
+
+
+  if (paperAuthors) {
+
+    paperAuthors.textContent =
+      paper.authors || "";
+  }
+
+
+  if (paperAbstract) {
+
+    paperAbstract.textContent =
+      paper.summary || "";
+  }
 
 
   const absLink =
-    document.getElementById("paper-abs-link");
+    document.getElementById(
+      "paper-abs-link"
+    );
 
   const pdfLink =
-    document.getElementById("paper-pdf-link");
+    document.getElementById(
+      "paper-pdf-link"
+    );
 
 
   if (absLink) {
@@ -192,8 +358,6 @@ function showPaper(paper) {
   }
 
 
-  // Reset summary.
-
   if (summaryBox) {
 
     summaryBox.innerHTML =
@@ -203,127 +367,12 @@ function showPaper(paper) {
   }
 
 
-  // Highlight selected paper.
+  /*
+   * Every time the main paper changes,
+   * find new Wikipedia articles.
+   */
 
-  highlightLatestPaper(
-    paper.arxivId
-  );
-}
-
-
-// =========================================================
-// LATEST PAPERS
-// =========================================================
-//
-// Displays the five newest papers from the current
-// category on the LEFT side of the main paper.
-//
-// Clicking one loads it into the center.
-// =========================================================
-
-function renderLatestPapers(papers) {
-
-  if (!latestPapers) {
-    return;
-  }
-
-
-  latestPapers.innerHTML = "";
-
-
-  if (!papers || !papers.length) {
-
-    latestPapers.innerHTML =
-      '<div class="summary-placeholder">' +
-      "No recent papers found." +
-      "</div>";
-
-    return;
-  }
-
-
-  papers
-    .slice(0, LATEST_COUNT)
-    .forEach(function (paper, index) {
-
-      const item =
-        document.createElement("button");
-
-
-      item.type = "button";
-
-      item.className =
-        "latest-paper";
-
-
-      item.dataset.arxivId =
-        paper.arxivId;
-
-
-      item.innerHTML =
-
-        '<span class="latest-number">' +
-        String(index + 1).padStart(2, "0") +
-        "</span>" +
-
-        '<span class="latest-paper-content">' +
-
-          '<span class="latest-paper-title">' +
-          escapeHtml(paper.title) +
-          "</span>" +
-
-          '<span class="latest-paper-date mono">' +
-          escapeHtml(paper.published) +
-          "</span>" +
-
-        "</span>";
-
-
-      item.addEventListener(
-        "click",
-        function () {
-
-          showPaper(paper);
-
-          window.scrollTo({
-            top: 0,
-            behavior: "smooth"
-          });
-        }
-      );
-
-
-      latestPapers.appendChild(item);
-    });
-
-}
-
-
-// =========================================================
-// HIGHLIGHT CURRENT LATEST PAPER
-// =========================================================
-
-function highlightLatestPaper(arxivId) {
-
-  if (!latestPapers) {
-    return;
-  }
-
-
-  const items =
-    latestPapers.querySelectorAll(
-      ".latest-paper"
-    );
-
-
-  items.forEach(function (item) {
-
-    item.classList.toggle(
-      "active",
-      item.dataset.arxivId === arxivId
-    );
-
-  });
+  loadRelatedWikipedia(paper);
 }
 
 
@@ -344,17 +393,28 @@ function parseEntries(xmlText) {
     );
 
 
-  if (doc.querySelector("parsererror")) {
+  if (
+    doc.querySelector(
+      "parsererror"
+    )
+  ) {
+
     return [];
   }
 
 
   return Array.from(
-    doc.querySelectorAll("entry")
+    doc.querySelectorAll(
+      "entry"
+    )
   ).map(function (entry) {
 
+
     const idNode =
-      entry.querySelector("id");
+      entry.querySelector(
+        "id"
+      );
+
 
     const idUrl =
       idNode
@@ -363,38 +423,56 @@ function parseEntries(xmlText) {
 
 
     const arxivId =
-      idUrl.split("/abs/").pop() ||
+      idUrl
+        .split("/abs/")
+        .pop() ||
       idUrl;
 
 
     const titleNode =
-      entry.querySelector("title");
+      entry.querySelector(
+        "title"
+      );
+
 
     const title =
       titleNode
         ? titleNode.textContent
-            .replace(/\s+/g, " ")
+            .replace(
+              /\s+/g,
+              " "
+            )
             .trim()
         : "";
 
 
     const summaryNode =
-      entry.querySelector("summary");
+      entry.querySelector(
+        "summary"
+      );
+
 
     const summary =
       summaryNode
         ? summaryNode.textContent
-            .replace(/\s+/g, " ")
+            .replace(
+              /\s+/g,
+              " "
+            )
             .trim()
         : "";
 
 
     const publishedNode =
-      entry.querySelector("published");
+      entry.querySelector(
+        "published"
+      );
+
 
     const published =
       publishedNode
-        ? publishedNode.textContent.slice(0, 10)
+        ? publishedNode.textContent
+            .slice(0, 10)
         : "";
 
 
@@ -405,7 +483,10 @@ function parseEntries(xmlText) {
         )
       )
       .map(function (node) {
-        return node.textContent.trim();
+
+        return node.textContent
+          .trim();
+
       })
       .join(", ");
 
@@ -417,23 +498,33 @@ function parseEntries(xmlText) {
         )
       )
       .map(function (node) {
-        return node.getAttribute("term");
+
+        return node.getAttribute(
+          "term"
+        );
+
       })
       .filter(Boolean)
       .join(", ");
 
 
     return {
+
       arxivId: arxivId,
+
       title: title,
+
       summary: summary,
+
       published: published,
+
       authors: authors,
+
       cats: cats
+
     };
 
   });
-
 }
 
 
@@ -444,11 +535,31 @@ function parseEntries(xmlText) {
 function escapeHtml(str) {
 
   return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+
+    .replace(
+      /&/g,
+      "&amp;"
+    )
+
+    .replace(
+      /</g,
+      "&lt;"
+    )
+
+    .replace(
+      />/g,
+      "&gt;"
+    )
+
+    .replace(
+      /"/g,
+      "&quot;"
+    )
+
+    .replace(
+      /'/g,
+      "&#039;"
+    );
 }
 
 
@@ -478,43 +589,24 @@ function getCategoryQuery(category) {
 
 
 // =========================================================
-// LOAD LATEST PAPERS
-// =========================================================
-//
-// IMPORTANT CHANGE:
-//
-// Previously:
-//
-// max_results=1
-//
-// Now:
-//
-// max_results=5
-//
-// The first paper is still opened as the main paper,
-// while all five are placed in the LEFT sidebar.
+// LOAD MAIN PAPER
 // =========================================================
 
-async function loadPaper(category, random) {
+async function loadPaper(
+  category,
+  random
+) {
 
   showStatus(
     random
-      ? "Loading random papers…"
-      : "Loading newest papers…"
+      ? "Loading random paper…"
+      : "Loading newest paper…"
   );
 
 
   if (resultsSection) {
+
     resultsSection.hidden = true;
-  }
-
-
-  if (latestPapers) {
-
-    latestPapers.innerHTML =
-      '<div class="summary-placeholder">' +
-      "Loading…" +
-      "</div>";
   }
 
 
@@ -536,7 +628,9 @@ async function loadPaper(category, random) {
 
   const query =
     "search_query=" +
-    encodeURIComponent(catQuery) +
+    encodeURIComponent(
+      catQuery
+    ) +
 
     "&sortBy=submittedDate" +
 
@@ -545,8 +639,7 @@ async function loadPaper(category, random) {
     "&start=" +
     start +
 
-    "&max_results=" +
-    LATEST_COUNT;
+    "&max_results=1";
 
 
   const url =
@@ -565,7 +658,8 @@ async function loadPaper(category, random) {
     if (!res.ok) {
 
       throw new Error(
-        "HTTP " + res.status
+        "HTTP " +
+        res.status
       );
     }
 
@@ -588,15 +682,6 @@ async function loadPaper(category, random) {
     }
 
 
-    // Put the five papers on the LEFT.
-
-    renderLatestPapers(
-      papers
-    );
-
-
-    // Put the newest/random paper in the CENTER.
-
     showPaper(
       papers[0]
     );
@@ -604,21 +689,176 @@ async function loadPaper(category, random) {
 
   } catch (error) {
 
-    console.error(error);
+    console.error(
+      error
+    );
 
 
     showStatus(
       "Could not reach arXiv. See console."
     );
+  }
+}
 
 
-    if (latestPapers) {
+// =========================================================
+// LOAD FIVE LATEST PAPERS
+// =========================================================
 
-      latestPapers.innerHTML =
-        '<div class="summary-placeholder">' +
-        "Could not load recent papers." +
-        "</div>";
+async function loadLatestPapers(
+  category
+) {
+
+  if (!latestList) {
+    return;
+  }
+
+
+  latestList.innerHTML =
+    '<div class="latest-loading">' +
+    "Loading…" +
+    "</div>";
+
+
+  const catQuery =
+    getCategoryQuery(
+      category
+    );
+
+
+  const query =
+    "search_query=" +
+    encodeURIComponent(
+      catQuery
+    ) +
+
+    "&sortBy=submittedDate" +
+
+    "&sortOrder=descending" +
+
+    "&start=0" +
+
+    "&max_results=5";
+
+
+  const url =
+    PROXY +
+    encodeURIComponent(
+      API + "?" + query
+    );
+
+
+  try {
+
+    const res =
+      await fetch(url);
+
+
+    if (!res.ok) {
+
+      throw new Error(
+        "HTTP " +
+        res.status
+      );
     }
+
+
+    const text =
+      await res.text();
+
+
+    const papers =
+      parseEntries(text);
+
+
+    if (!papers.length) {
+
+      latestList.innerHTML =
+        '<div class="latest-empty">' +
+        "No recent papers." +
+        "</div>";
+
+      return;
+    }
+
+
+    latestList.innerHTML =
+      "";
+
+
+    papers.forEach(
+      function (paper) {
+
+        const button =
+          document.createElement(
+            "button"
+          );
+
+
+        button.type =
+          "button";
+
+
+        button.className =
+          "latest-item";
+
+
+        button.innerHTML =
+
+          '<span class="latest-title">' +
+          escapeHtml(
+            paper.title
+          ) +
+          "</span>" +
+
+          '<span class="latest-date">' +
+          escapeHtml(
+            paper.published
+          ) +
+          "</span>";
+
+
+        button.addEventListener(
+          "click",
+          function () {
+
+            showPaper(
+              paper
+            );
+
+
+            window.scrollTo({
+
+              top: 0,
+
+              behavior: "smooth"
+
+            });
+
+          }
+        );
+
+
+        latestList.appendChild(
+          button
+        );
+
+      }
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      "Latest papers error:",
+      error
+    );
+
+
+    latestList.innerHTML =
+      '<div class="latest-error">' +
+      "Could not load recent papers." +
+      "</div>";
   }
 }
 
@@ -627,9 +867,15 @@ async function loadPaper(category, random) {
 // SEARCH
 // =========================================================
 
-async function runSearch(start) {
+async function runSearch(
+  start
+) {
 
-  if (typeof start !== "number") {
+  if (
+    typeof start !==
+    "number"
+  ) {
+
     start = 0;
   }
 
@@ -650,11 +896,14 @@ async function runSearch(start) {
   }
 
 
-  currentStart = start;
+  currentStart =
+    start;
 
 
   if (resultsSection) {
-    resultsSection.hidden = false;
+
+    resultsSection.hidden =
+      false;
   }
 
 
@@ -668,26 +917,28 @@ async function runSearch(start) {
 
 
   if (resultsInfo) {
-    resultsInfo.textContent = "";
+
+    resultsInfo.textContent =
+      "";
   }
 
 
   if (prevBtn) {
-    prevBtn.disabled = true;
+
+    prevBtn.disabled =
+      true;
   }
 
 
   if (nextBtn) {
-    nextBtn.disabled = true;
+
+    nextBtn.disabled =
+      true;
   }
 
 
   let searchQuery;
 
-
-  // -------------------------------------------------------
-  // Search all categories
-  // -------------------------------------------------------
 
   if (lastIsAll) {
 
@@ -695,16 +946,27 @@ async function runSearch(start) {
       Array.from(
         categorySelect.options
       )
-      .map(function (option) {
+      .map(function (
+        option
+      ) {
 
-        return getCategoryQuery(
-          option.value
-        );
+        return option.value;
+
       });
 
 
     const catPart =
-      cats.join(" OR ");
+      cats
+        .map(function (
+          category
+        ) {
+
+          return getCategoryQuery(
+            category
+          );
+
+        })
+        .join(" OR ");
 
 
     searchQuery =
@@ -722,7 +984,10 @@ async function runSearch(start) {
 
 
     searchQuery =
-      getCategoryQuery(category) +
+      getCategoryQuery(
+        category
+      ) +
+
       ' AND ti:"' +
       keyword +
       '"';
@@ -731,7 +996,9 @@ async function runSearch(start) {
 
   const query =
     "search_query=" +
-    encodeURIComponent(searchQuery) +
+    encodeURIComponent(
+      searchQuery
+    ) +
 
     "&sortBy=submittedDate" +
 
@@ -760,7 +1027,8 @@ async function runSearch(start) {
     if (!res.ok) {
 
       throw new Error(
-        "HTTP " + res.status
+        "HTTP " +
+        res.status
       );
     }
 
@@ -778,7 +1046,8 @@ async function runSearch(start) {
     }
 
 
-    resultsBox.innerHTML = "";
+    resultsBox.innerHTML =
+      "";
 
 
     if (!papers.length) {
@@ -792,55 +1061,89 @@ async function runSearch(start) {
     }
 
 
-    papers.forEach(function (paper) {
+    papers.forEach(
+      function (paper) {
 
-      const div =
-        document.createElement("div");
-
-
-      div.className =
-        "result-item";
-
-
-      div.innerHTML =
-
-        '<div class="result-title">' +
-        escapeHtml(paper.title) +
-        "</div>" +
-
-        '<div class="result-meta">' +
-        escapeHtml(paper.authors) +
-        " · " +
-        escapeHtml(paper.published) +
-        " · " +
-        escapeHtml(paper.cats) +
-        "</div>";
+        const div =
+          document.createElement(
+            "div"
+          );
 
 
-      div.addEventListener(
-        "click",
-        function () {
-
-          showPaper(paper);
-
-          window.scrollTo({
-            top: 0,
-            behavior: "smooth"
-          });
-        }
-      );
+        div.className =
+          "result-item";
 
 
-      resultsBox.appendChild(div);
-    });
+        div.innerHTML =
+
+          '<div class="result-title">' +
+
+          escapeHtml(
+            paper.title
+          ) +
+
+          "</div>" +
+
+          '<div class="result-meta">' +
+
+          escapeHtml(
+            paper.authors
+          ) +
+
+          " · " +
+
+          escapeHtml(
+            paper.published
+          ) +
+
+          " · " +
+
+          escapeHtml(
+            paper.cats
+          ) +
+
+          "</div>";
+
+
+        div.addEventListener(
+          "click",
+          function () {
+
+            showPaper(
+              paper
+            );
+
+
+            window.scrollTo({
+
+              top: 0,
+
+              behavior: "smooth"
+
+            });
+
+          }
+        );
+
+
+        resultsBox.appendChild(
+          div
+        );
+
+      }
+    );
 
 
     if (resultsInfo) {
 
       resultsInfo.textContent =
+
         (start + 1) +
+
         "–" +
-        (start + papers.length);
+
+        (start +
+          papers.length);
     }
 
 
@@ -854,13 +1157,16 @@ async function runSearch(start) {
     if (nextBtn) {
 
       nextBtn.disabled =
-        papers.length < PAGE_SIZE;
+        papers.length <
+        PAGE_SIZE;
     }
 
 
   } catch (error) {
 
-    console.error(error);
+    console.error(
+      error
+    );
 
 
     if (resultsBox) {
@@ -875,7 +1181,7 @@ async function runSearch(start) {
 
 
 // =========================================================
-// ABSTRACT SUMMARIZER
+// ABSTRACT SUMMARY
 // =========================================================
 
 function summarizeAbstract() {
@@ -902,12 +1208,15 @@ function summarizeAbstract() {
         "</p>";
     }
 
+
     return;
   }
 
 
   if (summarizeBtn) {
-    summarizeBtn.disabled = true;
+
+    summarizeBtn.disabled =
+      true;
   }
 
 
@@ -920,226 +1229,411 @@ function summarizeAbstract() {
   }
 
 
-  setTimeout(function () {
+  setTimeout(
+    function () {
 
-    try {
+      try {
 
-      const summary =
-        simplifyAbstract(
-          abstract
+        const summary =
+          simplifyAbstract(
+            abstract
+          );
+
+
+        if (!summary) {
+
+          throw new Error(
+            "No simplified text was produced."
+          );
+        }
+
+
+        if (summaryBox) {
+
+          /*
+           * Keep the Wikipedia panel intact.
+           * Only replace the actual summary text.
+           */
+
+          const wikiPanel =
+            summaryBox.parentElement
+              ? summaryBox.parentElement
+                .querySelector(
+                  ".wiki-panel"
+                )
+              : null;
+
+
+          summaryBox.innerHTML =
+            '<p class="summary-result">' +
+            escapeHtml(
+              summary
+            ) +
+            "</p>";
+        }
+
+
+      } catch (error) {
+
+        console.error(
+          "Simplification error:",
+          error
         );
 
 
-      if (!summary) {
+        if (summaryBox) {
 
-        throw new Error(
-          "No simplified text was produced."
-        );
+          summaryBox.innerHTML =
+            '<p class="summary-placeholder">' +
+            "I could not simplify this abstract." +
+            "</p>";
+        }
+
+
+      } finally {
+
+        if (summarizeBtn) {
+
+          summarizeBtn.disabled =
+            false;
+        }
       }
 
-
-      if (summaryBox) {
-
-        summaryBox.innerHTML =
-          '<p class="summary-result">' +
-          escapeHtml(summary) +
-          "</p>";
-      }
-
-
-    } catch (error) {
-
-      console.error(
-        "Simplification error:",
-        error
-      );
-
-
-      if (summaryBox) {
-
-        summaryBox.innerHTML =
-          '<p class="summary-placeholder">' +
-          "I could not simplify this abstract." +
-          "</p>";
-      }
-
-
-    } finally {
-
-      if (summarizeBtn) {
-        summarizeBtn.disabled = false;
-      }
-    }
-
-  }, 50);
+    },
+    50
+  );
 }
 
 
 // =========================================================
-// MAIN ABSTRACT SIMPLIFIER
+// ABSTRACT SIMPLIFIER
 // =========================================================
 
 function simplifyAbstract(text) {
 
   let sentences =
-    splitIntoSentences(text);
+    splitIntoSentences(
+      text
+    );
 
 
   if (!sentences.length) {
-    return simplifySentence(text);
+
+    return simplifySentence(
+      text
+    );
   }
 
 
   sentences =
-    sentences.filter(function (sentence) {
+    sentences.filter(
+      function (sentence) {
 
-      return sentence.length >= 35;
-    });
+        return (
+          sentence.length >= 35
+        );
+
+      }
+    );
 
 
   if (!sentences.length) {
-    return simplifySentence(text);
+
+    return simplifySentence(
+      text
+    );
   }
 
 
   const ranked =
     sentences
-      .map(function (sentence, index) {
+      .map(function (
+        sentence,
+        index
+      ) {
 
         return {
-          sentence: sentence,
-          index: index,
-          score: scoreSentence(
+
+          sentence:
             sentence,
+
+          index:
             index,
-            sentences.length
-          )
+
+          score:
+            scoreSentence(
+              sentence,
+              index,
+              sentences.length
+            )
+
         };
 
       })
-      .sort(function (a, b) {
+      .sort(function (
+        a,
+        b
+      ) {
 
-        return b.score - a.score;
+        return (
+          b.score -
+          a.score
+        );
+
       });
 
 
   const selected = [];
 
 
-  function addBest(predicate) {
+  function addBest(
+    predicate
+  ) {
 
     const match =
-      ranked.find(function (item) {
+      ranked.find(
+        function (item) {
 
-        return (
-          !selected.some(function (chosen) {
+          return (
 
-            return chosen.index === item.index;
+            !selected.some(
+              function (
+                chosen
+              ) {
 
-          }) &&
-          predicate(
-            item.sentence.toLowerCase()
-          )
-        );
-      });
+                return (
+                  chosen.index ===
+                  item.index
+                );
+
+              }
+            ) &&
+
+            predicate(
+              item.sentence
+                .toLowerCase()
+            )
+
+          );
+
+        }
+      );
 
 
     if (match) {
-      selected.push(match);
+
+      selected.push(
+        match
+      );
     }
   }
 
 
-  // Problem/background.
+  // Problem.
 
-  addBest(function (text) {
+  addBest(
+    function (text) {
 
-    return (
-      text.includes("problem") ||
-      text.includes("challenge") ||
-      text.includes("difficult") ||
-      text.includes("difficulty") ||
-      text.includes("limited") ||
-      text.includes("lack") ||
-      text.includes("avoid") ||
-      text.includes("cannot") ||
-      text.includes("hard")
-    );
-  });
+      return (
+
+        text.includes(
+          "problem"
+        ) ||
+
+        text.includes(
+          "challenge"
+        ) ||
+
+        text.includes(
+          "difficult"
+        ) ||
+
+        text.includes(
+          "difficulty"
+        ) ||
+
+        text.includes(
+          "limited"
+        ) ||
+
+        text.includes(
+          "lack"
+        ) ||
+
+        text.includes(
+          "avoid"
+        ) ||
+
+        text.includes(
+          "cannot"
+        ) ||
+
+        text.includes(
+          "hard"
+        )
+
+      );
+    }
+  );
 
 
   // Method.
 
-  addBest(function (text) {
+  addBest(
+    function (text) {
 
-    return (
-      text.includes("we propose") ||
-      text.includes("we present") ||
-      text.includes("we introduce") ||
-      text.includes("we develop") ||
-      text.includes("we use") ||
-      text.includes("we apply") ||
-      text.includes("method") ||
-      text.includes("approach") ||
-      text.includes("model") ||
-      text.includes("system")
-    );
-  });
+      return (
+
+        text.includes(
+          "we propose"
+        ) ||
+
+        text.includes(
+          "we present"
+        ) ||
+
+        text.includes(
+          "we introduce"
+        ) ||
+
+        text.includes(
+          "we develop"
+        ) ||
+
+        text.includes(
+          "we use"
+        ) ||
+
+        text.includes(
+          "we apply"
+        ) ||
+
+        text.includes(
+          "method"
+        ) ||
+
+        text.includes(
+          "approach"
+        ) ||
+
+        text.includes(
+          "model"
+        ) ||
+
+        text.includes(
+          "system"
+        )
+
+      );
+    }
+  );
 
 
   // Results.
 
-  addBest(function (text) {
+  addBest(
+    function (text) {
 
-    return (
-      text.includes("result") ||
-      text.includes("results") ||
-      text.includes("find") ||
-      text.includes("show") ||
-      text.includes("demonstrate") ||
-      text.includes("improve") ||
-      text.includes("increase") ||
-      text.includes("reduce")
-    );
-  });
+      return (
+
+        text.includes(
+          "result"
+        ) ||
+
+        text.includes(
+          "results"
+        ) ||
+
+        text.includes(
+          "find"
+        ) ||
+
+        text.includes(
+          "show"
+        ) ||
+
+        text.includes(
+          "demonstrate"
+        ) ||
+
+        text.includes(
+          "improve"
+        ) ||
+
+        text.includes(
+          "increase"
+        ) ||
+
+        text.includes(
+          "reduce"
+        )
+
+      );
+    }
+  );
 
 
   // Fill remaining slots.
 
-  ranked.forEach(function (item) {
+  ranked.forEach(
+    function (item) {
 
-    if (selected.length >= 4) {
-      return;
+      if (
+        selected.length >= 4
+      ) {
+
+        return;
+      }
+
+
+      const exists =
+        selected.some(
+          function (
+            chosen
+          ) {
+
+            return (
+              chosen.index ===
+              item.index
+            );
+
+          }
+        );
+
+
+      if (!exists) {
+
+        selected.push(
+          item
+        );
+      }
     }
+  );
 
 
-    const exists =
-      selected.some(function (chosen) {
+  selected.sort(
+    function (a, b) {
 
-        return chosen.index === item.index;
-      });
+      return (
+        a.index -
+        b.index
+      );
 
-
-    if (!exists) {
-      selected.push(item);
     }
-  });
-
-
-  selected.sort(function (a, b) {
-
-    return a.index - b.index;
-  });
+  );
 
 
   let simplified =
     selected
       .slice(0, 4)
-      .map(function (item) {
+      .map(function (
+        item
+      ) {
 
         return simplifySentence(
           item.sentence
         );
+
       })
       .filter(Boolean);
 
@@ -1156,16 +1650,29 @@ function simplifyAbstract(text) {
 
   result =
     result
-      .replace(/\s+/g, " ")
-      .replace(/\s+([,.!?])/g, "$1")
+
+      .replace(
+        /\s+/g,
+        " "
+      )
+
+      .replace(
+        /\s+([,.!?])/g,
+        "$1"
+      )
+
       .trim();
 
 
   const words =
-    result.split(/\s+/);
+    result.split(
+      /\s+/
+    );
 
 
-  if (words.length > 115) {
+  if (
+    words.length > 115
+  ) {
 
     result =
       words
@@ -1183,58 +1690,109 @@ function simplifyAbstract(text) {
 // SENTENCE SPLITTING
 // =========================================================
 
-function splitIntoSentences(text) {
+function splitIntoSentences(
+  text
+) {
 
-  // Compromise is optional.
+  /*
+   * No Compromise.
+   *
+   * Scientific abstracts frequently contain:
+   *
+   * "e.g."
+   * "i.e."
+   * "Fig."
+   * "Eq."
+   * decimal numbers
+   *
+   * so protect common abbreviations first.
+   */
 
-  if (typeof nlp === "function") {
-
-    try {
-
-      const doc =
-        nlp(text);
-
-
-      const sentences =
-        doc
-          .sentences()
-          .out("array")
-          .map(function (sentence) {
-
-            return sentence
-              .replace(/\s+/g, " ")
-              .trim();
-          });
-
-
-      if (sentences.length) {
-        return sentences;
-      }
-
-    } catch (error) {
-
-      console.warn(
-        "Compromise failed. Using fallback.",
-        error
+  let protectedText =
+    text
+      .replace(
+        /\be\.g\./gi,
+        "eg§"
+      )
+      .replace(
+        /\bi\.e\./gi,
+        "ie§"
+      )
+      .replace(
+        /\bFig\./g,
+        "Fig§"
+      )
+      .replace(
+        /\bEq\./g,
+        "Eq§"
+      )
+      .replace(
+        /\bDr\./g,
+        "Dr§"
+      )
+      .replace(
+        /\bProf\./g,
+        "Prof§"
       );
-    }
-  }
 
 
-  // Browser fallback.
+  protectedText =
+    protectedText
+      .replace(
+        /\s+/g,
+        " "
+      )
+      .trim();
 
-  return text
-    .replace(/\s+/g, " ")
-    .trim()
-    .split(
-      /(?<=[.!?])\s+(?=[A-Z])/
-    )
-    .map(function (sentence) {
 
-      return sentence.trim();
+  const sentences =
+    protectedText
+      .split(
+        /(?<=[.!?])\s+(?=[A-Z0-9])/g
+      )
+      .map(
+        function (sentence) {
 
-    })
-    .filter(Boolean);
+          return sentence
+
+            .replace(
+              /eg§/gi,
+              "e.g."
+            )
+
+            .replace(
+              /ie§/gi,
+              "i.e."
+            )
+
+            .replace(
+              /Fig§/g,
+              "Fig."
+            )
+
+            .replace(
+              /Eq§/g,
+              "Eq."
+            )
+
+            .replace(
+              /Dr§/g,
+              "Dr."
+            )
+
+            .replace(
+              /Prof§/g,
+              "Prof."
+            )
+
+            .trim();
+
+        }
+      )
+      .filter(Boolean);
+
+
+  return sentences;
 }
 
 
@@ -1256,11 +1814,13 @@ function scoreSentence(
 
 
   if (index === 0) {
+
     score += 5;
   }
 
 
   if (index === 1) {
+
     score += 2;
   }
 
@@ -1301,14 +1861,24 @@ function scoreSentence(
     "important",
     "useful",
     "benefit",
-    "potential"
+    "potential",
+
+    "we formulate",
+    "we study",
+    "we investigate",
+    "we analyze",
+    "we analyse"
+
   ];
 
 
   importantTerms.forEach(
     function (term) {
 
-      if (lower.includes(term)) {
+      if (
+        lower.includes(term)
+      ) {
+
         score += 2;
       }
     }
@@ -1319,16 +1889,32 @@ function scoreSentence(
     /\bhere,\s+we\s+(show|demonstrate|present)\b/i
       .test(sentence)
   ) {
+
     score += 5;
   }
 
 
-  if (sentence.length < 220) {
+  if (
+    /\bwe\s+(show|demonstrate|find|propose)\b/i
+      .test(sentence)
+  ) {
+
+    score += 3;
+  }
+
+
+  if (
+    sentence.length < 220
+  ) {
+
     score += 2;
   }
 
 
-  if (sentence.length > 450) {
+  if (
+    sentence.length > 450
+  ) {
+
     score -= 3;
   }
 
@@ -1337,6 +1923,7 @@ function scoreSentence(
     /\b(as shown in|see also|according to)\b/i
       .test(lower)
   ) {
+
     score -= 2;
   }
 
@@ -1348,26 +1935,15 @@ function scoreSentence(
 // =========================================================
 // SCIENTIFIC DICTIONARY
 // =========================================================
-//
-// This uses the separate scientific-dictionary.js.
-//
-// Example:
-//
-// "multipath propagation"
-//
-// becomes approximately:
-//
-// "many different paths movement"
-//
-// The dictionary is applied AFTER academic phrase
-// transformations.
-// =========================================================
 
-function applyScientificDictionary(text) {
+function applyScientificDictionary(
+  text
+) {
 
   if (
     typeof SCIENTIFIC_DICTIONARY ===
-      "undefined" ||
+    "undefined" ||
+
     !SCIENTIFIC_DICTIONARY
   ) {
 
@@ -1375,62 +1951,89 @@ function applyScientificDictionary(text) {
       "scientific-dictionary.js was not loaded."
     );
 
+
     return text;
   }
 
 
-  let result = text;
+  let result =
+    text;
 
-
-  // Longest expressions first.
 
   const terms =
     Object.keys(
       SCIENTIFIC_DICTIONARY
     )
-    .sort(function (a, b) {
+    .sort(
+      function (a, b) {
 
-      return b.length - a.length;
-    });
+        return (
+          b.length -
+          a.length
+        );
 
-
-  terms.forEach(function (term) {
-
-    const replacement =
-      SCIENTIFIC_DICTIONARY[term];
-
-
-    const escaped =
-      term.replace(
-        /[.*+?^${}()|[\]\\]/g,
-        "\\$&"
-      );
+      }
+    );
 
 
-    const regex =
-      new RegExp(
-        "(^|\\s)" +
-        escaped +
-        "(?=\\s|[,.!?;:]|$)",
-        "gi"
-      );
+  terms.forEach(
+    function (term) {
+
+      const replacement =
+        SCIENTIFIC_DICTIONARY[
+          term
+        ];
 
 
-    result =
-      result.replace(
-        regex,
-        function (
-          match,
-          prefix
-        ) {
+      if (
+        typeof replacement !==
+        "string"
+      ) {
 
-          return (
-            prefix +
-            replacement
-          );
-        }
-      );
-  });
+        return;
+      }
+
+
+      const escaped =
+        term.replace(
+          /[.*+?^${}()|[\]\\]/g,
+          "\\$&"
+        );
+
+
+      /*
+       * Use word boundaries when possible.
+       * This prevents "model" from changing
+       * part of "modeling".
+       */
+
+      const regex =
+        new RegExp(
+          "(^|\\s)" +
+          escaped +
+          "(?=\\s|[,.!?;:]|$)",
+          "gi"
+        );
+
+
+      result =
+        result.replace(
+          regex,
+          function (
+            match,
+            prefix
+          ) {
+
+            return (
+              prefix +
+              replacement
+            );
+
+          }
+        );
+
+    }
+  );
 
 
   return result;
@@ -1441,14 +2044,15 @@ function applyScientificDictionary(text) {
 // ACADEMIC PHRASES
 // =========================================================
 
-function simplifyAcademicPhrases(text) {
+function simplifyAcademicPhrases(
+  text
+) {
 
-  let result = text;
+  let result =
+    text;
 
 
   const replacements = [
-
-    // Research language.
 
     [
       /\bhere,\s+we\s+show\b/gi,
@@ -1520,9 +2124,6 @@ function simplifyAcademicPhrases(text) {
       "we use"
     ],
 
-
-    // Connectors.
-
     [
       /\bfurthermore\b/gi,
       "also"
@@ -1557,9 +2158,6 @@ function simplifyAcademicPhrases(text) {
       /\bhence\b/gi,
       "so"
     ],
-
-
-    // Long phrases.
 
     [
       /\bin order to\b/gi,
@@ -1621,9 +2219,6 @@ function simplifyAcademicPhrases(text) {
       "few"
     ],
 
-
-    // Results.
-
     [
       /\bour results demonstrate that\b/gi,
       "our results show that"
@@ -1654,9 +2249,6 @@ function simplifyAcademicPhrases(text) {
       "the results show that"
     ],
 
-
-    // Common scientific expressions.
-
     [
       /\bplays a crucial role\b/gi,
       "is very important"
@@ -1680,6 +2272,11 @@ function simplifyAcademicPhrases(text) {
     [
       /\bhas the ability to\b/gi,
       "can"
+    ],
+
+    [
+      /\bin order for\b/gi,
+      "so that"
     ],
 
     [
@@ -1741,11 +2338,14 @@ function simplifyAcademicPhrases(text) {
       /\bcomposed of\b/gi,
       "made of"
     ]
+
   ];
 
 
   replacements.forEach(
-    function (replacement) {
+    function (
+      replacement
+    ) {
 
       result =
         result.replace(
@@ -1764,12 +2364,13 @@ function simplifyAcademicPhrases(text) {
 // SIMPLIFY ONE SENTENCE
 // =========================================================
 
-function simplifySentence(sentence) {
+function simplifySentence(
+  sentence
+) {
 
-  let result = sentence;
+  let result =
+    sentence;
 
-
-  // Remove numeric citations.
 
   result =
     result.replace(
@@ -1778,7 +2379,14 @@ function simplifySentence(sentence) {
     );
 
 
-  // Academic phrase simplification.
+  result =
+    result
+      .replace(
+        /\s+/g,
+        " "
+      )
+      .trim();
+
 
   result =
     simplifyAcademicPhrases(
@@ -1786,18 +2394,16 @@ function simplifySentence(sentence) {
     );
 
 
-  // IMPORTANT:
-  //
-  // This is where your separate
-  // scientific-dictionary.js is actually used.
+  /*
+   * Dictionary is deliberately applied
+   * after academic phrase rewrites.
+   */
 
   result =
     applyScientificDictionary(
       result
     );
 
-
-  // General vocabulary.
 
   const generalReplacements = [
 
@@ -1870,36 +2476,49 @@ function simplifySentence(sentence) {
       /\brespectively\b/gi,
       "in the same order"
     ]
+
   ];
 
 
   generalReplacements.forEach(
-    function (replacement) {
+    function (
+      replacement
+    ) {
 
       result =
         result.replace(
           replacement[0],
           replacement[1]
         );
+
     }
   );
 
 
-  // Cleanup.
-
   result =
     result
-      .replace(/\s+/g, " ")
-      .replace(/\s+([,.!?])/g, "$1")
+
+      .replace(
+        /\s+/g,
+        " "
+      )
+
+      .replace(
+        /\s+([,.!?])/g,
+        "$1"
+      )
+
       .trim();
 
 
-  // Capitalize.
-
-  if (result.length > 0) {
+  if (
+    result.length > 0
+  ) {
 
     result =
-      result.charAt(0).toUpperCase() +
+      result.charAt(0)
+        .toUpperCase() +
+
       result.slice(1);
   }
 
@@ -1909,48 +2528,53 @@ function simplifySentence(sentence) {
 
 
 // =========================================================
-// DUPLICATE REMOVAL
+// REMOVE DUPLICATE SENTENCES
 // =========================================================
 
-function removeDuplicateSentences(sentences) {
+function removeDuplicateSentences(
+  sentences
+) {
 
   const result = [];
 
 
-  sentences.forEach(function (sentence) {
+  sentences.forEach(
+    function (sentence) {
 
-    const normalized =
-      sentence
-        .toLowerCase()
-        .replace(
-          /[^a-z0-9 ]/g,
-          ""
-        )
-        .trim();
-
-
-    const duplicate =
-      result.some(
-        function (existing) {
-
-          return (
-            textSimilarity(
-              normalized,
-              existing
-            ) > 0.70
-          );
-        }
-      );
-
-
-    if (!duplicate) {
-
-      result.push(
+      const normalized =
         sentence
-      );
-    }
+          .toLowerCase()
+          .replace(
+            /[^a-z0-9 ]/g,
+            ""
+          )
+          .trim();
 
-  });
+
+      const duplicate =
+        result.some(
+          function (existing) {
+
+            return (
+              textSimilarity(
+                normalized,
+                existing
+              ) > 0.70
+            );
+
+          }
+        );
+
+
+      if (!duplicate) {
+
+        result.push(
+          sentence
+        );
+      }
+
+    }
+  );
 
 
   return result;
@@ -1961,7 +2585,10 @@ function removeDuplicateSentences(sentences) {
 // TEXT SIMILARITY
 // =========================================================
 
-function textSimilarity(a, b) {
+function textSimilarity(
+  a,
+  b
+) {
 
   const wordsA =
     new Set(
@@ -1983,6 +2610,7 @@ function textSimilarity(a, b) {
     !wordsA.size ||
     !wordsB.size
   ) {
+
     return 0;
   }
 
@@ -1990,13 +2618,18 @@ function textSimilarity(a, b) {
   let common = 0;
 
 
-  wordsA.forEach(function (word) {
+  wordsA.forEach(
+    function (word) {
 
-    if (wordsB.has(word)) {
-      common++;
+      if (
+        wordsB.has(word)
+      ) {
+
+        common++;
+      }
+
     }
-
-  });
+  );
 
 
   return (
@@ -2010,6 +2643,599 @@ function textSimilarity(a, b) {
 
 
 // =========================================================
+// WIKIPEDIA SEARCH
+// =========================================================
+
+async function wikipediaSearch(
+  search,
+  limit
+) {
+
+  if (!search) {
+
+    return [];
+  }
+
+
+  const params =
+    new URLSearchParams({
+
+      action:
+        "opensearch",
+
+      search:
+        search,
+
+      namespace:
+        "0",
+
+      limit:
+        String(
+          limit || 5
+        ),
+
+      format:
+        "json",
+
+      origin:
+        "*"
+
+    });
+
+
+  const url =
+    WIKIPEDIA_API +
+    "?" +
+    params.toString();
+
+
+  const response =
+    await fetch(
+      url
+    );
+
+
+  if (!response.ok) {
+
+    throw new Error(
+      "Wikipedia HTTP " +
+      response.status
+    );
+  }
+
+
+  const data =
+    await response.json();
+
+
+  const titles =
+    Array.isArray(
+      data[1]
+    )
+      ? data[1]
+      : [];
+
+
+  const descriptions =
+    Array.isArray(
+      data[2]
+    )
+      ? data[2]
+      : [];
+
+
+  const urls =
+    Array.isArray(
+      data[3]
+    )
+      ? data[3]
+      : [];
+
+
+  return titles.map(
+    function (
+      title,
+      index
+    ) {
+
+      return {
+
+        title:
+          title,
+
+        description:
+          descriptions[
+            index
+          ] || "",
+
+        url:
+          urls[
+            index
+          ] || ""
+
+      };
+
+    }
+  );
+}
+
+
+// =========================================================
+// MERGE WIKIPEDIA RESULTS
+// =========================================================
+
+function mergeWikipediaResults(
+  first,
+  second
+) {
+
+  const result = [];
+
+  const seen =
+    new Set();
+
+
+  first
+    .concat(second)
+    .forEach(
+      function (article) {
+
+        if (
+          !article ||
+          !article.title
+        ) {
+
+          return;
+        }
+
+
+        const key =
+          article.title
+            .toLowerCase()
+            .trim();
+
+
+        if (
+          seen.has(key)
+        ) {
+
+          return;
+        }
+
+
+        seen.add(key);
+
+        result.push(
+          article
+        );
+
+      }
+    );
+
+
+  return result;
+}
+
+
+// =========================================================
+// WIKIPEDIA KEYWORD EXTRACTION
+// =========================================================
+
+function extractWikipediaKeywords(
+  paper
+) {
+
+  const combined =
+    (
+      (paper.title || "") +
+      " " +
+      (paper.summary || "")
+    )
+      .replace(
+        /[^a-zA-Z0-9\s-]/g,
+        " "
+      )
+      .replace(
+        /\s+/g,
+        " "
+      )
+      .trim();
+
+
+  const stopWords =
+    new Set([
+
+      "about",
+      "after",
+      "again",
+      "also",
+      "among",
+      "because",
+      "been",
+      "being",
+      "between",
+      "could",
+      "different",
+      "during",
+      "each",
+      "from",
+      "have",
+      "into",
+      "more",
+      "most",
+      "other",
+      "paper",
+      "results",
+      "show",
+      "shows",
+      "such",
+      "than",
+      "that",
+      "their",
+      "these",
+      "they",
+      "this",
+      "through",
+      "using",
+      "which",
+      "with",
+      "would",
+      "study",
+      "method",
+      "methods",
+      "system",
+      "systems",
+      "approach",
+      "proposed",
+      "present",
+      "introduce",
+      "introduced",
+      "develop",
+      "developed",
+      "we",
+      "our",
+      "the",
+      "and",
+      "for",
+      "are",
+      "was",
+      "were",
+      "its",
+      "has",
+      "can",
+      "may",
+      "not",
+      "from",
+      "under",
+      "within"
+
+    ]);
+
+
+  const words =
+    combined
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(
+        function (word) {
+
+          return (
+
+            word.length >= 6 &&
+
+            !stopWords.has(
+              word
+            )
+
+          );
+
+        }
+      );
+
+
+  const frequency =
+    new Map();
+
+
+  words.forEach(
+    function (word) {
+
+      frequency.set(
+        word,
+        (frequency.get(word) || 0) +
+        1
+      );
+
+    }
+  );
+
+
+  return Array.from(
+    frequency.entries()
+  )
+  .sort(
+    function (a, b) {
+
+      return b[1] - a[1];
+
+    }
+  )
+  .slice(0, 10)
+  .map(
+    function (entry) {
+
+      return entry[0];
+
+    }
+  );
+}
+
+
+// =========================================================
+// RELATED WIKIPEDIA ARTICLES
+// =========================================================
+
+async function loadRelatedWikipedia(
+  paper
+) {
+
+  if (!wikiList) {
+
+    return;
+  }
+
+
+  wikiList.innerHTML =
+    '<div class="wiki-loading">' +
+    "Finding related articles…" +
+    "</div>";
+
+
+  if (
+    !paper ||
+    !paper.title
+  ) {
+
+    wikiList.innerHTML =
+      '<div class="wiki-empty">' +
+      "No paper information available." +
+      "</div>";
+
+    return;
+  }
+
+
+  try {
+
+    /*
+     * First search the complete title.
+     * This is usually the strongest query.
+     */
+
+    let results =
+      await wikipediaSearch(
+        paper.title,
+        5
+      );
+
+
+    /*
+     * Then search important terms from
+     * the title + abstract.
+     */
+
+    const keywords =
+      extractWikipediaKeywords(
+        paper
+      );
+
+
+    /*
+     * Search several of the strongest terms.
+     * This gives much better results than
+     * simply searching the whole abstract.
+     */
+
+    for (
+      let i = 0;
+      i < Math.min(
+        keywords.length,
+        4
+      );
+      i++
+    ) {
+
+      if (
+        results.length >= 8
+      ) {
+
+        break;
+      }
+
+
+      const extra =
+        await wikipediaSearch(
+          keywords[i],
+          3
+        );
+
+
+      results =
+        mergeWikipediaResults(
+          results,
+          extra
+        );
+    }
+
+
+    /*
+     * If title search found nothing useful,
+     * search a compact keyword combination.
+     */
+
+    if (
+      results.length < 5 &&
+      keywords.length >= 2
+    ) {
+
+      const keywordQuery =
+        keywords
+          .slice(0, 4)
+          .join(" ");
+
+
+      const extra =
+        await wikipediaSearch(
+          keywordQuery,
+          10
+        );
+
+
+      results =
+        mergeWikipediaResults(
+          results,
+          extra
+        );
+    }
+
+
+    results =
+      results.slice(
+        0,
+        5
+      );
+
+
+    if (!results.length) {
+
+      wikiList.innerHTML =
+        '<div class="wiki-empty">' +
+        "No related Wikipedia articles found." +
+        "</div>";
+
+      return;
+    }
+
+
+    renderWikipediaResults(
+      results
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      "Wikipedia search error:",
+      error
+    );
+
+
+    wikiList.innerHTML =
+      '<div class="wiki-error">' +
+      "Could not load related articles." +
+      "</div>";
+  }
+}
+
+
+// =========================================================
+// RENDER WIKIPEDIA
+// =========================================================
+
+function renderWikipediaResults(
+  articles
+) {
+
+  if (!wikiList) {
+
+    return;
+  }
+
+
+  wikiList.innerHTML =
+    "";
+
+
+  articles
+    .slice(0, 5)
+    .forEach(
+      function (article) {
+
+        const link =
+          document.createElement(
+            "a"
+          );
+
+
+        link.className =
+          "wiki-item";
+
+
+        link.href =
+          article.url;
+
+
+        link.target =
+          "_blank";
+
+
+        link.rel =
+          "noopener noreferrer";
+
+
+        const title =
+          document.createElement(
+            "span"
+          );
+
+
+        title.className =
+          "wiki-title";
+
+
+        title.textContent =
+          article.title;
+
+
+        link.appendChild(
+          title
+        );
+
+
+        if (
+          article.description
+        ) {
+
+          const description =
+            document.createElement(
+              "span"
+            );
+
+
+          description.className =
+            "wiki-description";
+
+
+          description.textContent =
+            article.description;
+
+
+          link.appendChild(
+            description
+          );
+        }
+
+
+        wikiList.appendChild(
+          link
+        );
+
+      }
+    );
+}
+
+
+// =========================================================
 // EVENTS
 // =========================================================
 
@@ -2019,10 +3245,20 @@ if (categorySelect) {
     "change",
     function () {
 
+      const category =
+        categorySelect.value;
+
+
       loadPaper(
-        categorySelect.value,
+        category,
         false
       );
+
+
+      loadLatestPapers(
+        category
+      );
+
     }
   );
 }
@@ -2034,9 +3270,14 @@ if (searchBtn) {
     "click",
     function () {
 
-      lastIsAll = false;
+      lastIsAll =
+        false;
 
-      runSearch(0);
+
+      runSearch(
+        0
+      );
+
     }
   );
 }
@@ -2048,9 +3289,14 @@ if (searchAllBtn) {
     "click",
     function () {
 
-      lastIsAll = true;
+      lastIsAll =
+        true;
 
-      runSearch(0);
+
+      runSearch(
+        0
+      );
+
     }
   );
 }
@@ -2062,12 +3308,20 @@ if (keywordInput) {
     "keydown",
     function (event) {
 
-      if (event.key === "Enter") {
+      if (
+        event.key ===
+        "Enter"
+      ) {
 
-        lastIsAll = false;
+        lastIsAll =
+          false;
 
-        runSearch(0);
+
+        runSearch(
+          0
+        );
       }
+
     }
   );
 }
@@ -2080,13 +3334,16 @@ if (prevBtn) {
     function () {
 
       if (
-        currentStart >= PAGE_SIZE
+        currentStart >=
+        PAGE_SIZE
       ) {
 
         runSearch(
-          currentStart - PAGE_SIZE
+          currentStart -
+          PAGE_SIZE
         );
       }
+
     }
   );
 }
@@ -2099,8 +3356,10 @@ if (nextBtn) {
     function () {
 
       runSearch(
-        currentStart + PAGE_SIZE
+        currentStart +
+        PAGE_SIZE
       );
+
     }
   );
 }
@@ -2112,10 +3371,17 @@ if (randomPaperBtn) {
     "click",
     function () {
 
+      if (!categorySelect) {
+
+        return;
+      }
+
+
       loadPaper(
         categorySelect.value,
         true
       );
+
     }
   );
 }
@@ -2136,8 +3402,26 @@ if (summarizeBtn) {
 
 if (categorySelect) {
 
+  const category =
+    categorySelect.value;
+
+
+  /*
+   * Main paper.
+   */
+
   loadPaper(
-    categorySelect.value,
+    category,
     false
+  );
+
+
+  /*
+   * Five newest papers for the
+   * selected category.
+   */
+
+  loadLatestPapers(
+    category
   );
 }
