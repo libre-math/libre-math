@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
   <meta charset="UTF-8">
 
   <meta
@@ -10,15 +8,7 @@
     content="width=device-width, initial-scale=1.0"
   >
 
-  <meta
-    name="description"
-    content="Technical arXiv paper reader"
-  >
-
   <title>arXiv Technical Report</title>
-
-
-  <!-- Fonts -->
 
   <link
     rel="preconnect"
@@ -36,29 +26,23 @@
     rel="stylesheet"
   >
 
-
-  <!-- Main stylesheet -->
-
   <link
     rel="stylesheet"
     href="arxiv.css"
   >
-
 </head>
-
 
 <body>
 
 <a
-  href="#main-content"
   class="skip-link"
+  href="#main-content"
 >
-  Skip to content
+  Skip to main content
 </a>
 
 
 <div class="report">
-
 
   <!-- =====================================================
        HEADER
@@ -67,15 +51,13 @@
   <header class="report-header">
 
     <div>
-
       <div class="report-agency">
         ARXIV TECHNICAL REPORT
       </div>
 
       <h1 class="report-title">
-        Scientific Paper Reader
+        Scientific Paper Explorer
       </h1>
-
     </div>
 
 
@@ -111,102 +93,165 @@
     class="report-body"
   >
 
-
     <!-- ===================================================
-         CONTROLS
+         SEARCH / CONTROLS
          =================================================== -->
 
-    <section class="controls">
+    <section class="controls-section">
+
+      <div class="controls">
+
+        <div class="control-group">
+
+          <label for="category-select">
+            Category
+          </label>
+
+          <select id="category-select">
+
+            <!-- Physics -->
+            <option value="physics">
+              Physics
+            </option>
+
+            <!-- Mathematics -->
+            <option value="math">
+              Mathematics
+            </option>
+
+            <!-- Computer Science -->
+            <option value="cs">
+              Computer Science
+            </option>
+
+            <!-- Quantitative Biology -->
+            <option value="q-bio">
+              Quantitative Biology
+            </option>
+
+            <!-- Quantitative Finance -->
+            <option value="q-fin">
+              Quantitative Finance
+            </option>
+
+            <!-- Statistics -->
+            <option value="stat">
+              Statistics
+            </option>
+
+            <!-- Electrical Engineering -->
+            <option value="eess">
+              Electrical Engineering
+            </option>
+
+            <!-- Economics -->
+            <option value="econ">
+              Economics
+            </option>
+
+            <!-- Astrophysics -->
+            <option value="astro-ph">
+              Astrophysics
+            </option>
+
+            <!-- Condensed Matter -->
+            <option value="cond-mat">
+              Condensed Matter
+            </option>
+
+            <!-- General Relativity -->
+            <option value="gr-qc">
+              General Relativity
+            </option>
+
+            <!-- High Energy Physics -->
+            <option value="hep-ph">
+              High Energy Physics - Phenomenology
+            </option>
+
+            <option value="hep-th">
+              High Energy Physics - Theory
+            </option>
+
+            <option value="hep-ex">
+              High Energy Physics - Experiment
+            </option>
+
+            <!-- Quantum Physics -->
+            <option value="quant-ph">
+              Quantum Physics
+            </option>
+
+            <!-- Nonlinear Sciences -->
+            <option value="nlin">
+              Nonlinear Sciences
+            </option>
+
+            <!-- Nuclear -->
+            <option value="nucl-th">
+              Nuclear Theory
+            </option>
+
+            <option value="nucl-ex">
+              Nuclear Experiment
+            </option>
+
+            <!-- Computational Mathematics -->
+            <option value="math.NA">
+              Numerical Analysis
+            </option>
+
+            <!-- Machine Learning -->
+            <option value="cs.LG">
+              Machine Learning
+            </option>
+
+            <!-- AI -->
+            <option value="cs.AI">
+              Artificial Intelligence
+            </option>
+
+          </select>
+
+        </div>
 
 
-      <div class="control-group">
+        <div class="control-group search-control">
 
-        <label for="category-select">
-          Category
-        </label>
+          <label for="keyword-input">
+            Search title
+          </label>
 
-        <select id="category-select">
+          <div class="search-row">
 
-          <option value="cs">
-            Computer Science
-          </option>
+            <input
+              id="keyword-input"
+              type="text"
+              placeholder="e.g. neural networks"
+              autocomplete="off"
+            >
 
-          <option value="physics">
-            Physics
-          </option>
+            <button
+              id="search-btn"
+              class="btn"
+              type="button"
+            >
+              Search
+            </button>
 
-          <option value="math">
-            Mathematics
-          </option>
+            <button
+              id="search-all-btn"
+              class="btn btn-outline"
+              type="button"
+            >
+              Search All
+            </button>
 
-          <option value="q-fin">
-            Quantitative Finance
-          </option>
-
-          <option value="stat">
-            Statistics
-          </option>
-
-          <option value="econ">
-            Economics
-          </option>
-
-          <option value="eess">
-            Electrical Engineering
-          </option>
-
-          <option value="astro-ph">
-            Astrophysics
-          </option>
-
-          <option value="cond-mat">
-            Condensed Matter
-          </option>
-
-          <option value="quant-ph">
-            Quantum Physics
-          </option>
-
-        </select>
-
-      </div>
-
-
-      <div class="control-group search-control">
-
-        <label for="keyword-input">
-          Search title
-        </label>
-
-        <div class="search-row">
-
-          <input
-            id="keyword-input"
-            type="text"
-            placeholder="e.g. neural networks"
-            autocomplete="off"
-          >
-
-          <button
-            id="search-btn"
-            class="btn"
-            type="button"
-          >
-            Search
-          </button>
-
-          <button
-            id="search-all-btn"
-            class="btn btn-outline"
-            type="button"
-          >
-            All
-          </button>
+          </div>
 
         </div>
 
       </div>
-
 
     </section>
 
@@ -215,26 +260,36 @@
 
 
     <!-- ===================================================
-         PAPER LAYOUT
+         THREE-COLUMN PAPER LAYOUT
 
-         LEFT   = Latest
-         CENTER = Main paper
-         RIGHT  = Quick Sum Up + Wikipedia
+         LEFT  = Latest
+         MAIN  = Paper
+         RIGHT = Summary + Wikipedia
          =================================================== -->
 
-    <div class="paper-layout">
+    <section class="paper-layout">
 
 
       <!-- =================================================
            LEFT — LATEST PAPERS
            ================================================= -->
 
-      <aside class="latest-panel">
+      <aside
+        class="latest-panel"
+        aria-label="Latest papers"
+      >
 
         <div class="latest-header">
 
           <div class="latest-label">
             Latest
+          </div>
+
+          <div
+            id="latest-category"
+            class="latest-category"
+          >
+            --
           </div>
 
         </div>
@@ -246,7 +301,7 @@
         >
 
           <div class="latest-loading">
-            Loading…
+            Loading latest papers…
           </div>
 
         </div>
@@ -258,39 +313,37 @@
            CENTER — MAIN PAPER
            ================================================= -->
 
-      <main class="paper-main">
-
+      <article class="paper-main">
 
         <div
           id="paper-status"
           class="status"
         >
-          Loading…
+          Loading paper…
         </div>
 
 
-        <article
+        <div
           id="paper-content"
           hidden
         >
 
-
           <div class="paper-meta">
 
-            <span
-              id="paper-id"
-              class="mono"
-            ></span>
+            <span class="mono">
+              <strong>ID</strong>
+              <span id="paper-id"></span>
+            </span>
 
-            <span
-              id="paper-date"
-              class="mono"
-            ></span>
+            <span class="mono">
+              <strong>DATE</strong>
+              <span id="paper-date"></span>
+            </span>
 
-            <span
-              id="paper-cats"
-              class="mono"
-            ></span>
+            <span class="mono">
+              <strong>CATEGORIES</strong>
+              <span id="paper-cats"></span>
+            </span>
 
           </div>
 
@@ -320,7 +373,7 @@
               class="btn btn-outline"
               href="#"
               target="_blank"
-              rel="noopener noreferrer"
+              rel="noopener"
             >
               arXiv
             </a>
@@ -330,63 +383,116 @@
               class="btn btn-outline"
               href="#"
               target="_blank"
-              rel="noopener noreferrer"
+              rel="noopener"
             >
               PDF
             </a>
 
           </div>
 
+        </div>
 
-        </article>
+
+        <!-- =================================================
+             SEARCH RESULTS
+             ================================================= -->
+
+        <section
+          id="results-section"
+          class="results-section"
+          hidden
+        >
+
+          <div class="results-header">
+
+            <h3>
+              Search results
+            </h3>
+
+            <div class="results-nav">
+
+              <button
+                id="prev-btn"
+                class="btn btn-outline"
+                type="button"
+              >
+                Previous
+              </button>
+
+              <span
+                id="results-info"
+                class="mono"
+              ></span>
+
+              <button
+                id="next-btn"
+                class="btn btn-outline"
+                type="button"
+              >
+                Next
+              </button>
+
+            </div>
+
+          </div>
 
 
-      </main>
+          <div
+            id="results-box"
+            class="results-box"
+          ></div>
+
+        </section>
+
+      </article>
 
 
       <!-- =================================================
-           RIGHT — QUICK SUMMARY
+           RIGHT — QUICK SUMMARY + WIKIPEDIA
            ================================================= -->
 
-      <aside class="summary-panel">
+      <aside class="right-sidebar">
 
 
-        <div class="summary-header">
+        <!-- QUICK SUMMARY -->
 
-          <div class="summary-label">
-            Quick Sum Up
+        <section class="summary-panel">
+
+          <div class="summary-header">
+
+            <div class="summary-label">
+              Quick Sum Up
+            </div>
+
+            <button
+              id="summarize-btn"
+              class="btn"
+              type="button"
+            >
+              Sum up
+            </button>
+
           </div>
 
-          <button
-            id="summarize-btn"
-            class="btn"
-            type="button"
+
+          <div
+            id="summary-box"
+            class="summary-box"
           >
-            Sum up
-          </button>
 
-        </div>
+            <p class="summary-placeholder">
+              Click “Sum up” for a short,
+              plain-English version of the abstract.
+            </p>
 
+          </div>
 
-        <div
-          id="summary-box"
-          class="summary-box"
-        >
-
-          <p class="summary-placeholder">
-            Click “Sum up” for a short,
-            plain-English version of the abstract.
-          </p>
-
-        </div>
+        </section>
 
 
-        <!-- ===============================================
-             WIKIPEDIA
-             =============================================== -->
+        <!-- WIKIPEDIA -->
 
-        <div class="wiki-panel">
-
+        <section class="wiki-panel">
 
           <div class="wiki-header">
 
@@ -398,82 +504,22 @@
 
 
           <div
-            id="wiki-list"
-            class="wiki-list"
+            id="wikipedia-list"
+            class="wikipedia-list"
           >
 
-            <div class="wiki-loading">
-              Select a paper to find related articles…
+            <div class="wiki-placeholder">
+              Related articles will appear here.
             </div>
 
           </div>
 
-
-        </div>
-
+        </section>
 
       </aside>
 
 
-    </div>
-
-
-    <!-- ===================================================
-         SEARCH RESULTS
-         =================================================== -->
-
-    <section
-      id="results-section"
-      class="results-section"
-      hidden
-    >
-
-
-      <div class="results-header">
-
-        <h3>
-          Search Results
-        </h3>
-
-
-        <div class="results-nav">
-
-          <button
-            id="prev-btn"
-            class="btn btn-outline"
-            type="button"
-            disabled
-          >
-            Previous
-          </button>
-
-          <span
-            id="results-info"
-            class="mono"
-          ></span>
-
-          <button
-            id="next-btn"
-            class="btn btn-outline"
-            type="button"
-            disabled
-          >
-            Next
-          </button>
-
-        </div>
-
-      </div>
-
-
-      <div
-        id="results-box"
-        class="results-box"
-      ></div>
-
-
     </section>
-
 
   </main>
 
@@ -483,23 +529,19 @@
        ===================================================== -->
 
   <footer class="report-footer">
-
-    arXiv Technical Report ·
-    Local scientific reading interface
-
+    arXiv Technical Report · Personal research interface
   </footer>
-
 
 </div>
 
 
 <!-- =======================================================
-     JAVASCRIPT
+     IMPORTANT:
+     scientific-dictionary.js MUST load BEFORE arxiv.js
      ======================================================= -->
 
 <script src="scientific-dictionary.js"></script>
 <script src="arxiv.js"></script>
 
 </body>
-
 </html>
