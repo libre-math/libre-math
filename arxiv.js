@@ -225,136 +225,49 @@ async function runSearch(start) {
   }
 }
 
-async function summarizeAbstract() {
+function summarizeAbstract() {
   const abstractEl = document.getElementById("paper-abstract");
   const abstract = abstractEl ? abstractEl.textContent.trim() : "";
 
   if (!abstract) {
     if (summaryBox) {
       summaryBox.innerHTML =
-        '<p class="summary-placeholder">No abstract to summarize.</p>';
+        '<p class="summary-placeholder">No abstract to simplify.</p>';
     }
     return;
   }
 
-  if (summaryBox) {
-    summaryBox.innerHTML =
-      '<p class="summary-loading">Explaining it simply…</p>';
-  }
-
   if (summarizeBtn) summarizeBtn.disabled = true;
 
-  const model = "google/flan-t5-base";
-
-  const prompt = `
-Explain this scientific paper like you are explaining it to a 5-year-old.
-
-IMPORTANT RULES:
-- Do NOT copy the abstract.
-- Do NOT repeat the original sentences.
-- Use very simple everyday words.
-- Use short sentences.
-- Avoid scientific jargon.
-- Explain difficult ideas using simple examples.
-- Say what the scientists wanted to find out.
-- Say what they did.
-- Say what they found.
-- Say why it matters.
-- Assume the reader knows almost nothing about science.
-- Write only 4 to 6 short sentences.
-- Keep it under 100 words.
-
-ABSTRACT:
-${abstract}
-`.trim();
-
-  const hfUrl =
-    "https://api-inference.huggingface.co/models/" + model;
-
-  // Send the request through the same CORS proxy used for arXiv.
-  const url = PROXY + encodeURIComponent(hfUrl);
-
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        inputs: prompt,
-        parameters: {
-          max_new_tokens: 120,
-          min_new_tokens: 40,
-          do_sample: false
-        }
-      })
-    });
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(
-        "Hugging Face HTTP " + res.status + ": " + errorText
-      );
-    }
-
-    const data = await res.json();
-
-    console.log("Hugging Face response:", data);
-
-    let summary = "";
-
-    if (Array.isArray(data) && data[0]) {
-      summary =
-        data[0].generated_text ||
-        data[0].summary_text ||
-        "";
-    } else if (data.generated_text) {
-      summary = data.generated_text;
-    }
-
-    summary = String(summary).trim();
-
-    if (!summary) {
-      throw new Error("The model returned no summary.");
-    }
-
-    // Sometimes the model repeats part of the prompt.
-    if (summary.includes("ABSTRACT:")) {
-      summary = summary.split("ABSTRACT:").pop().trim();
-    }
-
-    summary = summary.replace(/^["“]+|["”]+$/g, "").trim();
-
-    // Keep it genuinely short.
-    const words = summary.split(/\s+/);
-
-    if (words.length > 100) {
-      summary = words.slice(0, 95).join(" ") + "…";
-    }
-
-    if (summaryBox) {
-      summaryBox.innerHTML =
-        '<p class="summary-result">' +
-        escapeHtml(summary) +
-        "</p>";
-    }
-
-  } catch (err) {
-    console.error("Summary error:", err);
-
-    if (summaryBox) {
-      summaryBox.innerHTML =
-        '<p class="summary-placeholder">' +
-        "I could not make the simple explanation. " +
-        "Please try again in a moment." +
-        "</p>";
-    }
-
-  } finally {
-    if (summarizeBtn) {
-      summarizeBtn.disabled = false;
-    }
+  if (summaryBox) {
+    summaryBox.innerHTML =
+      '<p class="summary-loading">Making it simpler…</p>';
   }
+
+  // Give the browser time to display the loading message.
+  setTimeout(function () {
+    try {
+      const summary = simplifyWithCompromise(abstract);
+
+      if (summaryBox) {
+        summaryBox.innerHTML =
+          '<p class="summary-result">' +
+          escapeHtml(summary) +
+          "</p>";
+      }
+    } catch (err) {
+      console.error("Simplification error:", err);
+
+      if (summaryBox) {
+        summaryBox.innerHTML =
+          '<p class="summary-placeholder">' +
+          "I could not simplify this abstract." +
+          "</p>";
+      }
+    }
+
+    if (summarizeBtn) summarizeBtn.disabled = false;
+  }, 50);
 }
 // ---------- Events ----------
 if (categorySelect) {
