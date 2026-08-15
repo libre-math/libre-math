@@ -232,75 +232,144 @@ async function summarizeAbstract() {
 
   if (!abstract) {
     if (summaryBox) {
-      summaryBox.innerHTML = '<p class="summary-placeholder">No abstract to summarize.</p>';
+      summaryBox.innerHTML =
+        '<p class="summary-placeholder">No abstract to summarize.</p>';
     }
     return;
   }
 
   if (summaryBox) {
-    summaryBox.innerHTML = '<p class="summary-loading">Summarizing…</p>';
+    summaryBox.innerHTML =
+      '<p class="summary-loading">Making this easy to understand…</p>';
   }
+
   if (summarizeBtn) summarizeBtn.disabled = true;
 
-  // Strong "dumb it down" instruction + longer target
-  const prompt = "Explain this scientific abstract in very simple words that a 15-year-old could easily understand. Use short sentences. Avoid all jargon and technical terms. Write about 120 to 150 words:\n\n" + abstract;
+  /*
+   * FLAN-T5 is an instruction-following model.
+   * This is much more suitable here than DistilBART, which is mainly
+   * trained to summarize news articles and tends to copy the source.
+   */
+  const model = "google/flan-t5-base";
+  const url =
+    "https://api-inference.huggingface.co/models/" + model;
 
-  const model = "sshleifer/distilbart-cnn-12-6";
-  const url = "https://api-inference.huggingface.co/models/" + model;
+  const prompt = `
+Explain the scientific abstract below as if you are explaining it to a 5-year-old.
+
+Rules:
+- Do NOT copy sentences from the abstract.
+- Do NOT use complicated scientific words.
+- If you must use a scientific word, explain it using very simple words.
+- Use very short sentences.
+- Explain what the researchers are trying to learn.
+- Explain what they did in simple words.
+- Explain what they discovered.
+- Explain why the discovery is useful or interesting.
+- Imagine the reader knows almost nothing about science.
+- Use a simple example or comparison when helpful.
+- Do not mention that you are an AI.
+- Do not say "the abstract says".
+- Write 4 to 7 short sentences.
+- Keep the whole answer under 100 words.
+
+Scientific abstract:
+
+${abstract}
+`.trim();
 
   try {
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify({
         inputs: prompt,
         parameters: {
-          max_length: 220,
-          min_length: 100,
+          max_new_tokens: 140,
+          min_new_tokens: 45,
           do_sample: false
         }
       })
     });
 
-    if (!res.ok) throw new Error("HF status " + res.status);
-
-    const data = await res.json();
-    let summary = "";
-
-    if (Array.isArray(data) && data[0] && data[0].summary_text) {
-      summary = data[0].summary_text;
-    } else if (data.summary_text) {
-      summary = data.summary_text;
-    } else {
-      throw new Error("Unexpected response");
+    if (!res.ok) {
+      throw new Error("HF status " + res.status);
     }
 
-    // Soft limit around 160 words
+    const data = await res.json();
+
+    let summary = "";
+
+    if (Array.isArray(data) && data[0]) {
+      summary =
+        data[0].generated_text ||
+        data[0].summary_text ||
+        "";
+    } else if (data.generated_text) {
+      summary = data.generated_text;
+    }
+
+    summary = String(summary).trim();
+
+    if (!summary) {
+      throw new Error("The model returned an empty answer.");
+    }
+
+    /*
+     * Sometimes a model can accidentally return the prompt together
+     * with its answer. Remove it if that happens.
+     */
+    if (summary.includes("Scientific abstract:")) {
+      summary = summary
+        .split("Scientific abstract:")
+        .pop()
+        .trim();
+    }
+
+    /*
+     * Remove quotation marks that sometimes appear around the answer.
+     */
+    summary = summary.replace(/^["“]+|["”]+$/g, "").trim();
+
+    /*
+     * Keep the answer short.
+     */
     const words = summary.split(/\s+/);
-    if (words.length > 160) {
-      summary = words.slice(0, 155).join(" ") + "…";
+
+    if (words.length > 110) {
+      summary = words.slice(0, 100).join(" ") + "…";
     }
 
     if (summaryBox) {
-      summaryBox.innerHTML = '<p class="summary-result">' + escapeHtml(summary) + '</p>';
+      summaryBox.innerHTML =
+        '<p class="summary-result">' +
+        escapeHtml(summary) +
+        "</p>";
     }
+
   } catch (err) {
     console.error("Summary error:", err);
 
-    // Fallback: first 3–4 sentences, capped around 150 words
-    const sentences = abstract.match(/[^.!?]+[.!?]+/g) || [abstract];
-    let fallback = sentences.slice(0, 4).join(" ");
-    const words = fallback.trim().split(/\s+/);
-    fallback = words.slice(0, 150).join(" ") + (words.length > 150 ? "…" : "");
-
+    /*
+     * IMPORTANT:
+     * Do not use the first sentences of the abstract as a fallback.
+     * That was the reason the old version looked like it was simply
+     * copying the abstract.
+     */
     if (summaryBox) {
-      summaryBox.innerHTML = '<p class="summary-result">' + escapeHtml(fallback) + '</p>';
+      summaryBox.innerHTML =
+        '<p class="summary-placeholder">' +
+        "The simple summary could not be generated right now. " +
+        "Please try the button again." +
+        "</p>";
     }
+
   } finally {
     if (summarizeBtn) summarizeBtn.disabled = false;
   }
 }
-
 // ---------- Events ----------
 if (categorySelect) {
   categorySelect.addEventListener("change", function () {
