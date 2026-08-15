@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Libre Books — Literary Explorer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    /* =========================================================
+       Libre Books — Wikipedia Literary Explorer
+       ========================================================= */
+    :root {
+      --bg: #f4efe4;
+      --bg-alt: #ebe4d6;
+      --bg-paper: #f9f5eb;
+      --text: #1c1914;
+      --text-muted: #5c5548;
+      --border: #2a2620;
+      --border-light: #c9c0b0;
+      --accent: #8b4513;
+      --accent-soft: rgba(139, 69, 19, 0.08);
+      --header-bg: #e6dfd0;
+      --button-bg: #1c1914;
+      --button-text: #f4efe4;
+      --button-hover: #3a342c;
+      --result-hover: #e6dfd0;
+      --rule: #2a2620;
+      --stamp-bg: #e6dfd0;
+      --info-bg: #f0eadc;
+    }
+    [data-theme="dark"] {
+      --bg: #0f0e0c;
+      --bg-alt: #1a1814;
+      --bg-paper: #161410;
+      --text: #e8e2d4;
+      --text-muted: #a89f8f;
+      --border: #3d3830;
+      --border-light: #2e2a24;
+      --accent: #d4a373;
+      --accent-soft: rgba(212, 163, 115, 0.12);
+      --header-bg: #1a1814;
+      --button-bg: #e8e2d4;
+      --button-text: #0f0e0c;
+      --button-hover: #ffffff;
+      --result-hover: #25221c;
+      --rule: #3d3830;
+      --stamp-bg: #1f1c18;
+      --info-bg: #1a1814;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: "Source Serif 4", Georgia, serif;
+      line-height: 1.65;
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+    .skip-link {
+      position: absolute; left: -9999px; top: 0;
+      background: var(--accent); color: #fff;
+      padding: 8px 14px; z-index: 10;
+    }
+    .skip-link:focus { left: 0; }
+    .report {
+      max-width: 960px; margin: 0 auto; min-height: 100vh;
+      background: var(--bg-paper);
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+      box-shadow: 0 0 40px rgba(0,0,0,0.06);
+    }
+    [data-theme="dark"] .report { box-shadow: 0 0 60px rgba(0,0,0,0.45); }
+    .report-header {
+      background: var(--header-bg);
+      border-bottom: 3px double var(--border);
+      padding: 1.15rem 1.6rem 1.25rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+      flex-wrap: wrap;
+      position: relative;
+    }
+    .report-header::after {
+      content: "";
+      position: absolute;
+      left: 1.6rem; right: 1.6rem; bottom: 6px;
+      height: 1px; background: var(--border-light);
+    }
+    .report-agency {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 0.3rem;
+      font-weight: 500;
+    }
+    .report-title { margin: 0; font-size: 1.4rem; font-weight: 700; letter-spacing: -0.015em; line-height: 1.25; }
+    .report-header-right { display: flex; gap: 0.5rem; align-items: center; }
+    .report-body { flex: 1; padding: 1.9rem 1.7rem 3.2rem; }
+    .rule { border: none; border-top: 1px solid var(--rule); margin: 1.6rem 0; }
+    .controls { display: flex; flex-wrap: wrap; gap: 1.4rem 2.2rem; margin-bottom: 0.4rem; }
+    .control-group { display: flex; flex-direction: column; gap: 0.4rem; }
+    .control-group label {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    select, input[type="text"] {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.88rem;
+      padding: 0.55rem 0.75rem;
+      background: var(--bg-alt);
+      color: var(--text);
+      border: 1px solid var(--border);
+      min-width: 220px;
+      border-radius: 0;
+    }
+    select:focus, input[type="text"]:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+    .search-row { display: flex; gap: 0.45rem; flex-wrap: wrap; }
+    #keyword-input { min-width: 200px; flex: 1; }
+    .btn {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.78rem;
+      font-weight: 500;
+      padding: 0.55rem 1.05rem;
+      background: var(--button-bg);
+      color: var(--button-text);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      text-decoration: none;
+      display: inline-block;
+      transition: background 0.15s ease, transform 0.1s ease;
+      border-radius: 0;
+    }
+    .btn:hover { background: var(--button-hover); }
+    .btn:active { transform: translateY(1px); }
+    .btn-outline { background: transparent; color: var(--text); }
+    .btn-outline:hover { background: var(--bg-alt); color: var(--text); }
+    .btn:disabled { opacity: 0.4; cursor: default; transform: none; }
+    .status {
+      font-family: "IBM Plex Mono", monospace;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    /* Book display */
+    .book-layout { display: grid; grid-template-columns: 1fr 280px; gap: 1.75rem; align-items: start; }
+    .book-main { min-width: 0; }
+    .book-meta {
+      display: flex; flex-wrap: wrap; gap: 0.5rem 0.9rem;
+      margin-bottom: 0.85rem; font-size: 0.8rem;
+      background: var(--stamp-bg); padding: 0.55rem 0.85rem;
+      border: 1px solid var(--border-light);
+    }
+    .mono { font-family: "IBM Plex Mono", monospace; color: var(--text-muted); }
+    .book-title { margin: 0 0 0.3rem; font-size: 1.8rem; font-weight: 700; line-height: 1.2; letter-spacing: -0.01em; }
+    .book-author { margin: 0 0 0.35rem; font-size: 1.1rem; color: var(--text-muted); }
+    .book-summary { font-size: 1.06rem; line-height: 1.78; text-align: justify; margin: 1rem 0 1.5rem; }
+    .book-plot { font-size: 1.06rem; line-height: 1.78; text-align: justify; margin: 1rem 0 1.5rem; }
+    .book-plot-label, .book-summary-label {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 500;
+      display: block;
+      margin-bottom: 0.3rem;
+    }
+    .book-actions { display: flex; gap: 0.55rem; flex-wrap: wrap; margin-top: 0.5rem; }
+
+    /* Info panel */
+    .info-panel {
+      background: var(--info-bg);
+      border: 1px solid var(--border);
+      padding: 1.1rem 1.15rem 1.25rem;
+      position: sticky;
+      top: 1.25rem;
+    }
+    .info-label {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 500;
+      display: block;
+      margin-bottom: 0.8rem;
+      border-bottom: 1px solid var(--border-light);
+      padding-bottom: 0.4rem;
+    }
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.25rem 0;
+      font-size: 0.85rem;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-label-text { color: var(--text-muted); font-family: "IBM Plex Mono", monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .info-value { font-weight: 500; text-align: right; }
+
+    /* Results */
+    .results-section { margin-top: 2.2rem; }
+    .results-header {
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 0.8rem; margin-bottom: 0.85rem;
+    }
+    .results-header h3 { margin: 0; font-size: 1.08rem; font-weight: 700; }
+    .results-nav { display: flex; align-items: center; gap: 0.65rem; }
+    .results-box {
+      border: 1px solid var(--border);
+      background: var(--bg-alt);
+      max-height: 440px;
+      overflow-y: auto;
+    }
+    .result-item {
+      padding: 0.9rem 1.15rem;
+      border-bottom: 1px solid var(--border-light);
+      cursor: pointer;
+      transition: background 0.15s ease;
+      border-left: 3px solid transparent;
+    }
+    .result-item:last-child { border-bottom: none; }
+    .result-item:hover { background: var(--result-hover); border-left-color: var(--accent); }
+    .result-title { font-weight: 600; margin-bottom: 0.25rem; line-height: 1.35; }
+    .result-meta { font-family: "IBM Plex Mono", monospace; font-size: 0.76rem; color: var(--text-muted); }
+
+    .report-footer {
+      border-top: 1px solid var(--border);
+      padding: 1.05rem 1.6rem;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      text-align: center;
+      background: var(--header-bg);
+    }
+    .summary-panel {
+      background: var(--bg-alt);
+      border: 1px solid var(--border);
+      padding: 1.1rem 1.15rem 1.25rem;
+      position: sticky;
+      top: 1.25rem;
+    }
+    .summary-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; gap: 0.5rem; }
+    .summary-label {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 500;
+    }
+    .summary-box { font-size: 0.95rem; line-height: 1.55; color: var(--text); }
+    .summary-placeholder { margin: 0; color: var(--text-muted); font-style: italic; font-size: 0.9rem; }
+    .summary-result { margin: 0; font-weight: 500; }
+    .summary-loading { color: var(--text-muted); font-family: "IBM Plex Mono", monospace; font-size: 0.82rem; }
+
+    @media (max-width: 720px) {
+      .book-layout { grid-template-columns: 1fr; }
+      .info-panel, .summary-panel { position: static; }
+    }
+    @media (max-width: 640px) {
+      .report { border: none; box-shadow: none; }
+      .report-body { padding: 1.35rem 1.1rem 2.6rem; }
+      .report-header { padding: 1rem 1.1rem 1.15rem; }
+      .book-title { font-size: 1.4rem; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <div class="report">
+    <header class="report-header">
+      <div class="report-header-left">
+        <div class="report-agency">LIBRE BOOKS · LITERARY EXPLORER</div>
+        <h1 class="report-title">Wikipedia Books</h1>
+      </div>
+      <div class="report-header-right">
+        <button id="theme-toggle" class="btn" aria-label="Toggle theme">Dark</button>
+        <a href="index.html" class="btn btn-outline">← Home</a>
+      </div>
+    </header>
+
+    <main id="main-content" class="report-body">
+      <section class="controls">
+        <div class="control-group">
+          <label for="category-select">Category</label>
+          <select id="category-select">
+            <option value="classic_novels">Classic Novels</option>
+            <option value="philosophy_books">Philosophy Books</option>
+            <option value="poetry_books">Poetry Books</option>
+          </select>
+        </div>
+        <div class="control-group search-group">
+          <label for="keyword-input">Search books</label>
+          <div class="search-row">
+            <input type="text" id="keyword-input" placeholder="Search by title or author…" autocomplete="off">
+            <button id="search-btn" class="btn">Search</button>
+          </div>
+        </div>
+      </section>
+      <hr class="rule">
+
+      <section id="book-view">
+        <div id="book-status" class="status">Loading a book…</div>
+        <div id="book-content" class="book-layout" hidden>
+          <div class="book-main">
+            <div class="book-meta">
+              <span id="book-id" class="mono"></span>
+              <span id="book-date" class="mono"></span>
+              <span id="book-pages" class="mono"></span>
+              <span id="book-genre" class="mono"></span>
+            </div>
+            <h2 id="book-title" class="book-title"></h2>
+            <p id="book-author" class="book-author mono"></p>
+            
+            <span class="book-summary-label">📖 Summary</span>
+            <div id="book-summary" class="book-summary"></div>
+            
+            <span class="book-plot-label">📜 Plot</span>
+            <div id="book-plot" class="book-plot"></div>
+            
+            <div class="book-actions">
+              <a id="book-wiki-link" class="btn" target="_blank">Read on Wikipedia</a>
+              <button id="random-book-btn" class="btn">🎲 Random book</button>
+            </div>
+          </div>
+
+          <aside class="info-panel">
+            <span class="info-label">📋 Book Info</span>
+            <div id="info-content">
+              <div class="info-row"><span class="info-label-text">Author</span><span class="info-value" id="info-author">—</span></div>
+              <div class="info-row"><span class="info-label-text">Born</span><span class="info-value" id="info-born">—</span></div>
+              <div class="info-row"><span class="info-label-text">Died</span><span class="info-value" id="info-died">—</span></div>
+              <div class="info-row"><span class="info-label-text">Published</span><span class="info-value" id="info-published">—</span></div>
+              <div class="info-row"><span class="info-label-text">Genre</span><span class="info-value" id="info-genre">—</span></div>
+              <div class="info-row"><span class="info-label-text">Pages</span><span class="info-value" id="info-pages">—</span></div>
+              <div class="info-row"><span class="info-label-text">Language</span><span class="info-value" id="info-language">—</span></div>
+              <div class="info-row"><span class="info-label-text">Related works</span><span class="info-value" id="info-related">—</span></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="results-section" class="results-section" hidden>
+        <div class="results-header">
+          <h3>Search results</h3>
+          <div class="results-nav">
+            <button id="prev-btn" class="btn btn-outline" disabled>← Previous</button>
+            <span id="results-info" class="mono"></span>
+            <button id="next-btn" class="btn btn-outline" disabled>Next 10 →</button>
+          </div>
+        </div>
+        <div id="results-box" class="results-box"></div>
+      </section>
+    </main>
+    <footer class="report-footer">Data from Wikipedia · Libre Books</footer>
+  </div>
+
+  <script>
+    // =========================================================
+    // Libre Books — Wikipedia Literary Explorer
+    // =========================================================
+
+    // Book lists by category
+    const BOOKS_BY_CATEGORY = {
+      classic_novels: [
+        'Moby-Dick', 'Pride and Prejudice', 'Jane Eyre', 'Wuthering Heights',
+        'Great Expectations', 'A Tale of Two Cities', 'Crime and Punishment',
+        'The Brothers Karamazov', 'War and Peace', 'Anna Karenina',
+        'Madame Bovary', 'Les Misérables', 'The Count of Monte Cristo',
+        'The Great Gatsby', 'To Kill a Mockingbird', '1984',
+        'Animal Farm', 'The Catcher in the Rye', 'One Hundred Years of Solitude',
+        'The Sound and the Fury', 'Ulysses', 'Mrs Dalloway',
+        'The Sun Also Rises', 'For Whom the Bell Tolls', 'The Old Man and the Sea',
+        'Middlemarch', 'David Copperfield', 'Oliver Twist',
+        'The Picture of Dorian Gray', 'Dracula', 'Frankenstein',
+        'The Strange Case of Dr Jekyll and Mr Hyde', 'The Time Machine',
+        'The War of the Worlds', 'Brave New World', 'Fahrenheit 451'
+      ],
+      philosophy_books: [
+        'Beyond Good and Evil', 'Thus Spoke Zarathustra', 'The Birth of Tragedy',
+        'Being and Time', 'The Phenomenology of Spirit', 'Critique of Pure Reason',
+        'The Republic', 'Nicomachean Ethics', 'Meditations', 'The Confessions',
+        'The Leviathan', 'The Social Contract', 'The Wealth of Nations',
+        'The Interpretation of Dreams', 'Civilization and Its Discontents',
+        'The Second Sex', 'The Gay Science', 'Human, All Too Human',
+        'A Treatise of Human Nature', 'An Enquiry Concerning Human Understanding',
+        'The Consolation of Philosophy', 'The City of God',
+        'The Prince', 'Utopia', 'Praise of Folly',
+        'Discourse on Method', 'Meditations on First Philosophy',
+        'The Spirit of the Laws', 'On Liberty', 'The Communist Manifesto'
+      ],
+      poetry_books: [
+        'The Divine Comedy', 'Paradise Lost', 'The Iliad', 'The Odyssey',
+        'The Aeneid', 'Beowulf', 'The Faerie Queene', 'Don Juan',
+        'The Rime of the Ancient Mariner', 'Ode to a Nightingale',
+        'The Raven', 'Leaves of Grass', 'The Waste Land',
+        'Howl', 'Sonnets from the Portuguese', 'Ariel',
+        'The Love Song of J. Alfred Prufrock', 'The Cantos',
+        'Inferno', 'Purgatorio', 'Paradiso', 'The Canterbury Tales'
+      ]
+    };
+
+    // All books flattened for search
+    const ALL_BOOKS = Object.values(BOOKS_BY_CATEGORY).flat();
+
+    const categorySelect = document.getElementById('category-select');
+    const keywordInput = document.getElementById('keyword-input');
+    const searchBtn = document.getElementById('search-btn');
+    const bookStatus = document.getElementById('book-status');
+    const bookContent = document.getElementById('book-content');
+    const resultsSection = document.getElementById('results-section');
+    const resultsBox = document.getElementById('results-box');
+    const resultsInfo = document.getElementById('results-info');
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    const themeToggle = document.getElementById('theme-toggle');
+    const randomBookBtn = document.getElementById('random-book-btn');
+    const summaryBox = document.querySelector('.summary-box');
+
+    let currentStart = 0;
+    const PAGE_SIZE = 10;
+    let currentBooks = [];
+    let currentCategory = 'classic_novels';
+
+    // ---------- Theme ----------
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      if (themeToggle) themeToggle.textContent = theme === 'dark' ? 'Light' : 'Dark';
+      try { localStorage.setItem('libre-books-theme', theme); } catch(e) {}
+    }
+    (function() {
+      let saved = 'light';
+      try { saved = localStorage.getItem('libre-books-theme') || 'light'; } catch(e) {}
+      applyTheme(saved);
+    })();
+    if (themeToggle) {
+      themeToggle.addEventListener('click', function() {
+        const current = document.documentElement.getAttribute('data-theme') || 'light';
+        applyTheme(current === 'dark' ? 'light' : 'dark');
+      });
+    }
+
+    // ---------- Wikipedia API ----------
+    async function fetchWikipediaPage(title) {
+      const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${title}`);
+      return await res.json();
+    }
+
+    async function fetchWikipediaFull(title) {
+      const url = `https://en.wikipedia.org/api/rest_v1/page/html/${encodeURIComponent(title)}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.text();
+    }
+
+    // ---------- Parse book data ----------
+    function parseBookData(data, title) {
+      const extract = data.extract || 'No summary available.';
+      const extractHtml = data.extract_html || '';
+      
+      // Try to find plot from the HTML
+      let plot = '';
+      if (data.extract_html) {
+        // Simple plot extraction - look for "Plot" section
+        const plotMatch = data.extract_html.match(/Plot<\/[^>]+>(.*?)(?=<[hH]|$)/s);
+        if (plotMatch) plot = plotMatch[1].replace(/<[^>]+>/g, ' ').trim();
+      }
+      if (!plot) {
+        // Fallback: take a longer excerpt
+        const words = extract.split(' ');
+        plot = words.length > 100 ? words.slice(0, 100).join(' ') + '…' : extract;
+      }
+
+      // Basic info extraction
+      const info = {
+        author: 'Unknown',
+        born: '',
+        died: '',
+        published: '',
+        genre: '',
+        pages: '',
+        language: 'English',
+        related: ''
+      };
+
+      // Try to get more info from the API
+      // We'll use the data.description if available
+      if (data.description) {
+        const desc = data.description;
+        if (desc.includes('by ')) {
+          const authorMatch = desc.match(/by\s+([^,]+)/);
+          if (authorMatch) info.author = authorMatch[1].trim();
+        }
+      }
+
+      return {
+        title: title,
+        author: info.author,
+        summary: extract,
+        plot: plot,
+        published: info.published,
+        genre: info.genre,
+        pages: info.pages,
+        language: info.language,
+        related: info.related,
+        url: data.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(title)}`,
+        born: info.born,
+        died: info.died
+      };
+    }
+
+    // ---------- Display book ----------
+    function showBook(book) {
+      if (bookStatus) bookStatus.hidden = true;
+      if (bookContent) bookContent.hidden = false;
+
+      document.getElementById('book-id').textContent = '';
+      document.getElementById('book-date').textContent = book.published || '';
+      document.getElementById('book-pages').textContent = book.pages || '';
+      document.getElementById('book-genre').textContent = book.genre || '';
+      document.getElementById('book-title').textContent = book.title || '';
+      document.getElementById('book-author').textContent = 'by ' + (book.author || 'Unknown');
+      document.getElementById('book-summary').textContent = book.summary || 'No summary available.';
+      document.getElementById('book-plot').textContent = book.plot || 'No plot summary available.';
+
+      const wikiLink = document.getElementById('book-wiki-link');
+      if (wikiLink) wikiLink.href = book.url || '#';
+
+      // Update info panel
+      document.getElementById('info-author').textContent = book.author || '—';
+      document.getElementById('info-born').textContent = book.born || '—';
+      document.getElementById('info-died').textContent = book.died || '—';
+      document.getElementById('info-published').textContent = book.published || '—';
+      document.getElementById('info-genre').textContent = book.genre || '—';
+      document.getElementById('info-pages').textContent = book.pages || '—';
+      document.getElementById('info-language').textContent = book.language || '—';
+      document.getElementById('info-related').textContent = book.related || '—';
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // ---------- Load random book ----------
+    async function loadRandomBook(category) {
+      bookStatus.hidden = false;
+      bookContent.hidden = true;
+      resultsSection.hidden = true;
+      bookStatus.textContent = 'Loading a random book…';
+
+      const books = BOOKS_BY_CATEGORY[category] || BOOKS_BY_CATEGORY.classic_novels;
+      const randomTitle = books[Math.floor(Math.random() * books.length)];
+      
+      try {
+        const data = await fetchWikipediaPage(randomTitle);
+        const book = parseBookData(data, randomTitle);
+        showBook(book);
+      } catch (err) {
+        console.error('Error loading book:', err);
+        bookStatus.textContent = `Error loading "${randomTitle}". Please try again.`;
+      }
+    }
+
+    // ---------- Search books ----------
+    async function runSearch(start) {
+      const keyword = keywordInput.value.trim();
+      if (!keyword) { alert('Please type a search term.'); return; }
+
+      currentStart = start;
+      resultsSection.hidden = false;
+      resultsBox.innerHTML = '<div class="status" style="padding:1rem">Searching…</div>';
+      resultsInfo.textContent = '';
+      prevBtn.disabled = true;
+      nextBtn.disabled = true;
+
+      try {
+        // Search Wikipedia
+        const searchUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(keyword)}`;
+        const res = await fetch(searchUrl);
+        
+        if (!res.ok) {
+          resultsBox.innerHTML = `<div class="status" style="padding:1rem">No results found for "${keyword}"</div>`;
+          return;
+        }
+        
+        const data = await res.json();
+        const book = parseBookData(data, data.title || keyword);
+        
+        resultsBox.innerHTML = '';
+        const div = document.createElement('div');
+        div.className = 'result-item';
+        div.innerHTML = `
+          <div class="result-title">${escapeHtml(book.title)}</div>
+          <div class="result-meta">${escapeHtml(book.author)} · ${book.published || 'Date unknown'}</div>
+        `;
+        div.addEventListener('click', function() {
+          showBook(book);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        resultsBox.appendChild(div);
+        
+        resultsInfo.textContent = '1 result';
+        prevBtn.disabled = true;
+        nextBtn.disabled = true;
+      } catch (err) {
+        console.error('Search error:', err);
+        resultsBox.innerHTML = `<div class="status" style="padding:1rem">Search failed: ${err.message}</div>`;
+      }
+    }
+
+    // ---------- Events ----------
+    categorySelect.addEventListener('change', function() {
+      currentCategory = categorySelect.value;
+      loadRandomBook(currentCategory);
+    });
+
+    searchBtn.addEventListener('click', function() {
+      runSearch(0);
+    });
+
+    keywordInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') runSearch(0);
+    });
+
+    randomBookBtn.addEventListener('click', function() {
+      loadRandomBook(currentCategory);
+    });
+
+    prevBtn.addEventListener('click', function() {
+      if (currentStart >= PAGE_SIZE) runSearch(currentStart - PAGE_SIZE);
+    });
+
+    nextBtn.addEventListener('click', function() {
+      runSearch(currentStart + PAGE_SIZE);
+    });
+
+    // ---------- Start ----------
+    loadRandomBook('classic_novels');
+  </script>
+</body>
+</html>
