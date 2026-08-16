@@ -301,6 +301,38 @@ function renderTable(payload) {
     return;
   }
 
+  // Sort by frequency descending and keep only the top 10
+  const rows = Object.keys(counts)
+    .map(function (code) {
+      return {
+        code: code,
+        name: CATEGORY_NAMES[code] || code,
+        count: counts[code]
+      };
+    })
+    .sort(function (a, b) {
+      return b.count - a.count || a.code.localeCompare(b.code);
+    })
+    .slice(0, 10);   // ← only the first 10
+
+  tbodyEl.innerHTML = "";
+
+  rows.forEach(function (row, idx) {
+    const pct = ((row.count / paperCount) * 100).toFixed(1);
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      "<td class='rank'>" + (idx + 1) + "</td>" +
+      "<td class='subject'>" + escapeHtml(row.name) + "</td>" +
+      "<td class='code mono'>" + escapeHtml(row.code) + "</td>" +
+      "<td class='count mono'>" + row.count + "</td>" +
+      "<td class='pct mono'>" + pct + "%</td>";
+    tbodyEl.appendChild(tr);
+  });
+
+  statusEl.hidden = true;
+  contentEl.hidden = false;
+}
+
   // Sort by frequency descending
   const rows = Object.keys(counts)
     .map(function (code) {
