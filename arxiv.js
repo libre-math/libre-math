@@ -4,6 +4,7 @@
 const API = "https://export.arxiv.org/api/query";
 const PROXY = "https://corsproxy.io/?";
 const WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php";
+const SUMMARY_WORKER_URL = "https://arxiv-summarizer.libremaths.workers.dev";
 const PAGE_SIZE = 10;
 const LATEST_COUNT = 5;
 
@@ -487,23 +488,71 @@ function splitIntoSentences(text) {
     .filter(Boolean);
 }
 
-function summarizeAbstract() {
-  const abstractEl = document.getElementById("paper-abstract");
-  const abstract = abstractEl ? abstractEl.textContent.trim() : "";
+async function summarizeAbstract() {
+
+  const abstractEl =
+    document.getElementById("paper-abstract");
+
+  const abstract =
+    abstractEl ? abstractEl.textContent.trim() : "";
 
   if (!abstract) {
     if (summaryBox) {
       summaryBox.innerHTML =
-        '<p class="summary-placeholder">No abstract available.</p>';
+        '<p class="summary-placeholder">No abstract to simplify.</p>';
     }
     return;
   }
 
-  if (summarizeBtn) summarizeBtn.disabled = true;
+  if (summarizeBtn) { summarizeBtn.disabled = true; }
+
   if (summaryBox) {
     summaryBox.innerHTML =
-      '<p class="summary-loading">Extracting…</p>';
+      '<p class="summary-loading">Making it simpler…</p>';
   }
+
+  let summary = "";
+
+  try {
+
+    const controller = new AbortController();
+    const timeout = setTimeout(function () { controller.abort(); }, 15000);
+
+    const response = await fetch(SUMMARY_WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: abstract }),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeout);
+
+    if (response.ok) {
+      const data = await response.json();
+      summary = (data.summary || "").trim();
+    }
+
+  } catch (error) {
+    console.warn("HF Worker summary failed, falling back to local simplifier:", error);
+  }
+
+  if (!summary) {
+    // Fallback: local rule-based simplifier (no network needed).
+    try {
+      summary = simplifyAbstract(abstract);
+    } catch (error) {
+      console.error("Local simplification error:", error);
+    }
+  }
+
+  if (summaryBox) {
+    summaryBox.innerHTML = summary
+      ? '<p class="summary-result">' + escapeHtml(summary) + "</p>"
+      : '<p class="summary-placeholder">I could not simplify this abstract.</p>';
+  }
+
+  if (summarizeBtn) { summarizeBtn.disabled = false; }
+}
 
   setTimeout(function () {
     try {
