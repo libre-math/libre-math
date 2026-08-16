@@ -1,862 +1,342 @@
 // =========================================================
-// arXiv Category Trends
+// arXiv Subject Trends
 //
-// Fetches how many papers were submitted per category over
-// the last N days, using arXiv's own reported result count
-// (opensearch:totalResults) rather than downloading every
-// paper — one lightweight request per category.
-//
-// Renders a hand-rolled SVG pie chart (no chart library
-// needed) plus a legend.
+// Fetches the last 50 papers (all of arXiv or one main archive)
+// and builds a frequency table of the subjects/categories
+// that appear on those papers.
 // =========================================================
 
+const API   = "https://export.arxiv.org/api/query";
+const PROXY = "https://corsproxy.io/?";
+const PAPER_LIMIT = 50;
 
-const API =
-  "https://export.arxiv.org/api/query";
-
-const PROXY =
-  "https://corsproxy.io/?";
-
-const WINDOW_DAYS = 14;
-
-const MAX_SLICES = 8;
-
-const CONCURRENCY = 5;
-
-
-// =========================================================
-// CATEGORY LISTS
-//
-// Keep these in sync with the <option> values in index.html's
-// #category-select if categories are ever added or removed
-// there.
-//
-// MAIN_CATEGORIES are the 8 top-level arXiv archives. They
-// never overlap with each other, so a "Main Categories" pie
-// is a clean partition (modulo cross-listing between them,
-// which is rare across such broad archives).
-//
-// ALL_CATEGORIES also includes narrower, already-nested
-// subcategories (e.g. cs.LG sits inside cs) — useful for
-// seeing which specific subfields are active, but slices can
-// overlap, which is why that mode is captioned on the page.
-// =========================================================
-
-const MAIN_CATEGORIES = [
-
-  { value: "physics", label: "Physics" },
-  { value: "math", label: "Mathematics" },
-  { value: "cs", label: "Computer Science" },
-  { value: "q-bio", label: "Quantitative Biology" },
-  { value: "q-fin", label: "Quantitative Finance" },
-  { value: "stat", label: "Statistics" },
-  { value: "eess", label: "Electrical Engineering" },
-  { value: "econ", label: "Economics" }
-
-];
-
-
-const ALL_CATEGORIES =
-  MAIN_CATEGORIES.concat([
-
-    { value: "astro-ph", label: "Astrophysics" },
-    { value: "cond-mat", label: "Condensed Matter" },
-    { value: "gr-qc", label: "General Relativity" },
-    { value: "hep-ph", label: "High Energy Physics - Phenomenology" },
-    { value: "hep-th", label: "High Energy Physics - Theory" },
-    { value: "hep-ex", label: "High Energy Physics - Experiment" },
-    { value: "quant-ph", label: "Quantum Physics" },
-    { value: "nlin", label: "Nonlinear Sciences" },
-    { value: "nucl-th", label: "Nuclear Theory" },
-    { value: "nucl-ex", label: "Nuclear Experiment" },
-    { value: "math.NA", label: "Numerical Analysis" },
-    { value: "cs.LG", label: "Machine Learning" },
-    { value: "cs.AI", label: "Artificial Intelligence" },
-    { value: "eess.SP", label: "Signal Processing" }
-
-  ]);
-
-
-// Muted, editorial palette to match the archival-report theme.
-
-const PALETTE = [
-
-  "#8b1a1a",
-  "#3a5a40",
-  "#4a6fa5",
-  "#b08a3e",
-  "#7c5295",
-  "#2a7f7f",
-  "#a3502b",
-  "#5c5548",
-  "#6b6b6b"
-
-];
-
+// Full official names (subset of the most common ones).
+// Unknown codes simply show the short code.
+const CATEGORY_NAMES = {
+  "cs.AI":  "Artificial Intelligence",
+  "cs.AR":  "Hardware Architecture",
+  "cs.CC":  "Computational Complexity",
+  "cs.CE":  "Computational Engineering, Finance, and Science",
+  "cs.CG":  "Computational Geometry",
+  "cs.CL":  "Computation and Language",
+  "cs.CR":  "Cryptography and Security",
+  "cs.CV":  "Computer Vision and Pattern Recognition",
+  "cs.CY":  "Computers and Society",
+  "cs.DB":  "Databases",
+  "cs.DC":  "Distributed, Parallel, and Cluster Computing",
+  "cs.DL":  "Digital Libraries",
+  "cs.DM":  "Discrete Mathematics",
+  "cs.DS":  "Data Structures and Algorithms",
+  "cs.ET":  "Emerging Technologies",
+  "cs.FL":  "Formal Languages and Automata Theory",
+  "cs.GL":  "General Literature",
+  "cs.GR":  "Graphics",
+  "cs.GT":  "Computer Science and Game Theory",
+  "cs.HC":  "Human-Computer Interaction",
+  "cs.IR":  "Information Retrieval",
+  "cs.IT":  "Information Theory",
+  "cs.LG":  "Machine Learning",
+  "cs.LO":  "Logic in Computer Science",
+  "cs.MA":  "Multiagent Systems",
+  "cs.MM":  "Multimedia",
+  "cs.MS":  "Mathematical Software",
+  "cs.NA":  "Numerical Analysis",
+  "cs.NE":  "Neural and Evolutionary Computing",
+  "cs.NI":  "Networking and Internet Architecture",
+  "cs.OH":  "Other Computer Science",
+  "cs.OS":  "Operating Systems",
+  "cs.PF":  "Performance",
+  "cs.PL":  "Programming Languages",
+  "cs.RO":  "Robotics",
+  "cs.SC":  "Symbolic Computation",
+  "cs.SD":  "Sound",
+  "cs.SE":  "Software Engineering",
+  "cs.SI":  "Social and Information Networks",
+  "cs.SY":  "Systems and Control",
+  "math.AG": "Algebraic Geometry",
+  "math.AT": "Algebraic Topology",
+  "math.AP": "Analysis of PDEs",
+  "math.CT": "Category Theory",
+  "math.CA": "Classical Analysis and ODEs",
+  "math.CO": "Combinatorics",
+  "math.AC": "Commutative Algebra",
+  "math.CV": "Complex Variables",
+  "math.DG": "Differential Geometry",
+  "math.DS": "Dynamical Systems",
+  "math.FA": "Functional Analysis",
+  "math.GM": "General Mathematics",
+  "math.GN": "General Topology",
+  "math.GT": "Geometric Topology",
+  "math.GR": "Group Theory",
+  "math.HO": "History and Overview",
+  "math.IT": "Information Theory",
+  "math.KT": "K-Theory and Homology",
+  "math.LO": "Logic",
+  "math.MP": "Mathematical Physics",
+  "math.MG": "Metric Geometry",
+  "math.NT": "Number Theory",
+  "math.NA": "Numerical Analysis",
+  "math.OA": "Operator Algebras",
+  "math.OC": "Optimization and Control",
+  "math.PR": "Probability",
+  "math.QA": "Quantum Algebra",
+  "math.RT": "Representation Theory",
+  "math.RA": "Rings and Algebras",
+  "math.SP": "Spectral Theory",
+  "math.ST": "Statistics Theory",
+  "math.SG": "Symplectic Geometry",
+  "stat.AP": "Applications",
+  "stat.CO": "Computation",
+  "stat.ML": "Machine Learning",
+  "stat.ME": "Methodology",
+  "stat.OT": "Other Statistics",
+  "stat.TH": "Statistics Theory",
+  "eess.AS": "Audio and Speech Processing",
+  "eess.IV": "Image and Video Processing",
+  "eess.SP": "Signal Processing",
+  "eess.SY": "Systems and Control",
+  "q-bio.BM": "Biomolecules",
+  "q-bio.CB": "Cell Behavior",
+  "q-bio.GN": "Genomics",
+  "q-bio.MN": "Molecular Networks",
+  "q-bio.NC": "Neurons and Cognition",
+  "q-bio.OT": "Other Quantitative Biology",
+  "q-bio.PE": "Populations and Evolution",
+  "q-bio.QM": "Quantitative Methods",
+  "q-bio.SC": "Subcellular Processes",
+  "q-bio.TO": "Tissues and Organs",
+  "q-fin.CP": "Computational Finance",
+  "q-fin.EC": "Economics",
+  "q-fin.GN": "General Finance",
+  "q-fin.MF": "Mathematical Finance",
+  "q-fin.PM": "Portfolio Management",
+  "q-fin.PR": "Pricing of Securities",
+  "q-fin.RM": "Risk Management",
+  "q-fin.ST": "Statistical Finance",
+  "q-fin.TR": "Trading and Market Microstructure",
+  "econ.EM": "Econometrics",
+  "econ.GN": "General Economics",
+  "econ.TH": "Theoretical Economics",
+  "astro-ph.CO": "Cosmology and Nongalactic Astrophysics",
+  "astro-ph.EP": "Earth and Planetary Astrophysics",
+  "astro-ph.GA": "Astrophysics of Galaxies",
+  "astro-ph.HE": "High Energy Astrophysical Phenomena",
+  "astro-ph.IM": "Instrumentation and Methods for Astrophysics",
+  "astro-ph.SR": "Solar and Stellar Astrophysics",
+  "cond-mat.dis-nn": "Disordered Systems and Neural Networks",
+  "cond-mat.mes-hall": "Mesoscale and Nanoscale Physics",
+  "cond-mat.mtrl-sci": "Materials Science",
+  "cond-mat.other": "Other Condensed Matter",
+  "cond-mat.quant-gas": "Quantum Gases",
+  "cond-mat.soft": "Soft Condensed Matter",
+  "cond-mat.stat-mech": "Statistical Mechanics",
+  "cond-mat.str-el": "Strongly Correlated Electrons",
+  "cond-mat.supr-con": "Superconductivity",
+  "gr-qc": "General Relativity and Quantum Cosmology",
+  "hep-ex": "High Energy Physics - Experiment",
+  "hep-lat": "High Energy Physics - Lattice",
+  "hep-ph": "High Energy Physics - Phenomenology",
+  "hep-th": "High Energy Physics - Theory",
+  "math-ph": "Mathematical Physics",
+  "nlin.AO": "Adaptation and Self-Organizing Systems",
+  "nlin.CG": "Cellular Automata and Lattice Gases",
+  "nlin.CD": "Chaotic Dynamics",
+  "nlin.SI": "Exactly Solvable and Integrable Systems",
+  "nlin.PS": "Pattern Formation and Solitons",
+  "nucl-ex": "Nuclear Experiment",
+  "nucl-th": "Nuclear Theory",
+  "physics.acc-ph": "Accelerator Physics",
+  "physics.ao-ph": "Atmospheric and Oceanic Physics",
+  "physics.app-ph": "Applied Physics",
+  "physics.atm-clus": "Atomic and Molecular Clusters",
+  "physics.atom-ph": "Atomic Physics",
+  "physics.bio-ph": "Biological Physics",
+  "physics.chem-ph": "Chemical Physics",
+  "physics.class-ph": "Classical Physics",
+  "physics.comp-ph": "Computational Physics",
+  "physics.data-an": "Data Analysis, Statistics and Probability",
+  "physics.flu-dyn": "Fluid Dynamics",
+  "physics.gen-ph": "General Physics",
+  "physics.geo-ph": "Geophysics",
+  "physics.hist-ph": "History and Philosophy of Physics",
+  "physics.ins-det": "Instrumentation and Detectors",
+  "physics.med-ph": "Medical Physics",
+  "physics.optics": "Optics",
+  "physics.ed-ph": "Physics Education",
+  "physics.soc-ph": "Physics and Society",
+  "physics.plasm-ph": "Plasma Physics",
+  "physics.pop-ph": "Popular Physics",
+  "physics.space-ph": "Space Physics",
+  "quant-ph": "Quantum Physics"
+};
 
 // =========================================================
 // DOM
 // =========================================================
-
-const modeAllBtn =
-  document.getElementById("mode-all-btn");
-
-const modeMainBtn =
-  document.getElementById("mode-main-btn");
-
-const refreshBtn =
-  document.getElementById("refresh-btn");
-
-const statusEl =
-  document.getElementById("trends-status");
-
-const contentEl =
-  document.getElementById("trends-content");
-
-const chartEl =
-  document.getElementById("trends-chart");
-
-const legendEl =
-  document.getElementById("trends-legend");
-
-const windowLabelEl =
-  document.getElementById("trends-window-label");
-
+const scopeSelect = document.getElementById("scope-select");
+const refreshBtn  = document.getElementById("refresh-btn");
+const statusEl    = document.getElementById("trends-status");
+const contentEl   = document.getElementById("trends-content");
+const tbodyEl     = document.getElementById("trends-tbody");
+const scopeLabel  = document.getElementById("scope-label");
 
 // =========================================================
 // STATE
-//
-// Results are cached per mode after the first successful
-// load, so switching the toggle doesn't re-fetch unless the
-// user clicks Refresh.
 // =========================================================
-
-let currentMode = "all";
-
-const cache = {
-  all: null,
-  main: null
-};
-
+let currentScope = "all";
+const cache = {};           // scope → { counts, paperCount }
 
 // =========================================================
-// CATEGORY QUERY (same rule as the main explorer: bare
-// archive names need a wildcard, fully-qualified subcategory
-// codes don't).
+// QUERY BUILDERS
 // =========================================================
-
-function getCategoryQuery(category) {
-
-  if (category.indexOf(".") === -1) {
-
-    return "cat:" + category + "*";
+function buildSearchQuery(scope) {
+  if (scope === "all") {
+    return 'all:""';          // matches everything
   }
-
-
-  return "cat:" + category;
+  // Main archives need a wildcard so we catch all sub-categories
+  return "cat:" + scope + "*";
 }
 
-
 // =========================================================
-// DATE RANGE
+// FETCH LAST 50 PAPERS
 // =========================================================
-
-function pad(n) {
-
-  return String(n).padStart(2, "0");
-}
-
-
-function formatArxivDate(date) {
-
-  return (
-
-    date.getUTCFullYear() +
-    pad(date.getUTCMonth() + 1) +
-    pad(date.getUTCDate()) +
-    pad(date.getUTCHours()) +
-    pad(date.getUTCMinutes())
-
-  );
-}
-
-
-function getDateRange(days) {
-
-  const end =
-    new Date();
-
-  const start =
-    new Date(
-      end.getTime() -
-      days * 24 * 60 * 60 * 1000
-    );
-
-
-  return {
-
-    startStr: formatArxivDate(start),
-
-    endStr: formatArxivDate(end)
-
-  };
-}
-
-
-// =========================================================
-// FETCH ONE CATEGORY'S TOTAL COUNT
-// =========================================================
-
-async function fetchCategoryCount(category, dateRange) {
-
-  const searchQuery =
-    "(" +
-    getCategoryQuery(category) +
-    ") AND submittedDate:[" +
-    dateRange.startStr +
-    " TO " +
-    dateRange.endStr +
-    "]";
-
-
+async function fetchRecentPapers(scope) {
+  const searchQuery = buildSearchQuery(scope);
   const query =
-    "search_query=" +
-    encodeURIComponent(searchQuery) +
+    "search_query=" + encodeURIComponent(searchQuery) +
     "&start=0" +
-    "&max_results=1";
+    "&max_results=" + PAPER_LIMIT +
+    "&sortBy=submittedDate" +
+    "&sortOrder=descending";
 
-
-  const url =
-    PROXY +
-    encodeURIComponent(
-      API + "?" + query
-    );
-
-
-  const response =
-    await fetch(url);
-
+  const url = PROXY + encodeURIComponent(API + "?" + query);
+  const response = await fetch(url);
 
   if (!response.ok) {
-
-    throw new Error(
-      "arXiv HTTP " + response.status
-    );
+    throw new Error("arXiv HTTP " + response.status);
   }
 
-
-  const text =
-    await response.text();
-
-
-  const parser =
-    new DOMParser();
-
-  const doc =
-    parser.parseFromString(
-      text,
-      "application/xml"
-    );
-
+  const text = await response.text();
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(text, "application/xml");
 
   if (doc.querySelector("parsererror")) {
-
-    throw new Error(
-      "Could not parse arXiv XML."
-    );
+    throw new Error("Could not parse arXiv XML.");
   }
 
-
-  const totalNode =
-    doc.getElementsByTagName(
-      "opensearch:totalResults"
-    )[0];
-
-
-  const total =
-    totalNode
-      ? parseInt(totalNode.textContent, 10)
-      : NaN;
-
-
-  if (isNaN(total)) {
-
-    throw new Error(
-      "No totalResults found for " + category
-    );
-  }
-
-
-  return total;
+  const entries = Array.from(doc.getElementsByTagName("entry"));
+  return entries;
 }
 
-
 // =========================================================
-// LIMITED-CONCURRENCY MAP
-//
-// 21 categories, each needing its own request, run through a
-// free CORS proxy — running all of them at once risks getting
-// throttled. This processes a few at a time instead, and
-// reports progress as it goes.
+// COUNT CATEGORIES
 // =========================================================
+function countCategories(entries) {
+  const counts = Object.create(null);
 
-async function mapWithConcurrency(items, limit, worker, onProgress) {
+  entries.forEach(function (entry) {
+    // All <category> elements (primary + secondary)
+    const cats = entry.getElementsByTagName("category");
+    for (let i = 0; i < cats.length; i++) {
+      const term = cats[i].getAttribute("term");
+      if (!term) continue;
+      // Skip non-arXiv schemes if any appear
+      const scheme = cats[i].getAttribute("scheme") || "";
+      if (scheme && scheme.indexOf("arxiv.org") === -1) continue;
 
-  const results =
-    new Array(items.length);
-
-  let nextIndex =
-    0;
-
-  let completed =
-    0;
-
-
-  async function runNext() {
-
-    const index =
-      nextIndex++;
-
-
-    if (index >= items.length) {
-      return;
+      counts[term] = (counts[term] || 0) + 1;
     }
+  });
 
-
-    try {
-
-      results[index] =
-        { ok: true, value: await worker(items[index], index) };
-
-    } catch (error) {
-
-      results[index] =
-        { ok: false, error: error };
-    }
-
-
-    completed++;
-
-
-    if (onProgress) {
-
-      onProgress(
-        completed,
-        items.length
-      );
-    }
-
-
-    await runNext();
-  }
-
-
-  const runners =
-    [];
-
-  for (
-    let i = 0;
-    i < Math.min(limit, items.length);
-    i++
-  ) {
-
-    runners.push(
-      runNext()
-    );
-  }
-
-
-  await Promise.all(
-    runners
-  );
-
-
-  return results;
+  return counts;
 }
 
-
 // =========================================================
-// LOAD DATA FOR A MODE
+// LOAD + RENDER
 // =========================================================
+async function loadTrends(scope, forceRefresh) {
+  currentScope = scope;
 
-async function loadTrends(mode, forceRefresh) {
+  // Update label
+  if (scopeLabel) {
+    const opt = scopeSelect.querySelector('option[value="' + scope + '"]');
+    scopeLabel.textContent = scope === "all"
+      ? "(all of arXiv)"
+      : "(" + (opt ? opt.textContent : scope) + ")";
+  }
 
-  currentMode =
-    mode;
-
-
-  updateToggleUI(
-    mode
-  );
-
-
-  if (
-    cache[mode] &&
-    !forceRefresh
-  ) {
-
-    renderTrends(
-      cache[mode]
-    );
-
+  if (cache[scope] && !forceRefresh) {
+    renderTable(cache[scope]);
     return;
   }
 
+  contentEl.hidden = true;
+  statusEl.hidden = false;
+  statusEl.textContent = "Loading last " + PAPER_LIMIT + " papers…";
 
-  const categories =
-    mode === "main"
-      ? MAIN_CATEGORIES
-      : ALL_CATEGORIES;
+  try {
+    const entries = await fetchRecentPapers(scope);
+    const counts  = countCategories(entries);
 
-
-  const dateRange =
-    getDateRange(WINDOW_DAYS);
-
-
-  if (windowLabelEl) {
-
-    windowLabelEl.textContent =
-      "last " + WINDOW_DAYS + " days";
-  }
-
-
-  contentEl.hidden =
-    true;
-
-  statusEl.hidden =
-    false;
-
-  statusEl.textContent =
-    "Loading category data… (0 / " +
-    categories.length +
-    ")";
-
-
-  const results =
-    await mapWithConcurrency(
-      categories,
-      CONCURRENCY,
-
-      function (category) {
-
-        return fetchCategoryCount(
-          category.value,
-          dateRange
-        );
-
-      },
-
-      function (completed, total) {
-
-        statusEl.textContent =
-          "Loading category data… (" +
-          completed +
-          " / " +
-          total +
-          ")";
-
-      }
-    );
-
-
-  const data =
-    [];
-
-  let failedCount =
-    0;
-
-
-  results.forEach(
-    function (result, index) {
-
-      if (result.ok) {
-
-        data.push({
-
-          label: categories[index].label,
-
-          value: result.value
-
-        });
-
-      } else {
-
-        failedCount++;
-
-        console.warn(
-          "Failed to load count for " +
-          categories[index].value +
-          ":",
-          result.error
-        );
-
-      }
-
-    }
-  );
-
-
-  if (!data.length) {
-
-    statusEl.textContent =
-      "Could not load category data. See console for details.";
-
-    return;
-  }
-
-
-  const payload =
-    {
-
-      data: data,
-
-      failedCount: failedCount,
-
-      totalCategories: categories.length
-
+    const payload = {
+      counts: counts,
+      paperCount: entries.length
     };
 
-
-  cache[mode] =
-    payload;
-
-
-  renderTrends(
-    payload
-  );
-}
-
-
-// =========================================================
-// UPDATE TOGGLE BUTTON STYLING
-// =========================================================
-
-function updateToggleUI(mode) {
-
-  if (modeAllBtn) {
-
-    modeAllBtn.classList.toggle(
-      "active",
-      mode === "all"
-    );
-
-    modeAllBtn.classList.toggle(
-      "btn-outline",
-      mode !== "all"
-    );
-  }
-
-
-  if (modeMainBtn) {
-
-    modeMainBtn.classList.toggle(
-      "active",
-      mode === "main"
-    );
-
-    modeMainBtn.classList.toggle(
-      "btn-outline",
-      mode !== "main"
-    );
+    cache[scope] = payload;
+    renderTable(payload);
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = "Failed to load data: " + err.message;
   }
 }
 
+function renderTable(payload) {
+  const { counts, paperCount } = payload;
 
-// =========================================================
-// RENDER
-// =========================================================
-
-function renderTrends(payload) {
-
-  const sorted =
-    payload.data
-
-      .slice()
-
-      .sort(
-        function (a, b) {
-
-          return b.value - a.value;
-
-        }
-      );
-
-
-  let sliceData =
-    sorted.slice(0, MAX_SLICES);
-
-
-  const rest =
-    sorted.slice(MAX_SLICES);
-
-
-  if (rest.length) {
-
-    const otherTotal =
-      rest.reduce(
-        function (sum, item) {
-
-          return sum + item.value;
-
-        },
-        0
-      );
-
-
-    if (otherTotal > 0) {
-
-      sliceData =
-        sliceData.concat([{
-
-          label: "Other",
-
-          value: otherTotal
-
-        }]);
-    }
-  }
-
-
-  const grandTotal =
-    sliceData.reduce(
-      function (sum, item) {
-
-        return sum + item.value;
-
-      },
-      0
-    );
-
-
-  if (!grandTotal) {
-
-    statusEl.hidden =
-      false;
-
-    statusEl.textContent =
-      "No papers found in this window.";
-
-    contentEl.hidden =
-      true;
-
+  if (!paperCount) {
+    statusEl.hidden = false;
+    statusEl.textContent = "No papers returned.";
+    contentEl.hidden = true;
     return;
   }
 
+  // Sort by frequency descending
+  const rows = Object.keys(counts)
+    .map(function (code) {
+      return {
+        code: code,
+        name: CATEGORY_NAMES[code] || code,
+        count: counts[code]
+      };
+    })
+    .sort(function (a, b) {
+      return b.count - a.count || a.code.localeCompare(b.code);
+    });
 
-  statusEl.hidden =
-    true;
+  tbodyEl.innerHTML = "";
 
-  contentEl.hidden =
-    false;
+  rows.forEach(function (row, idx) {
+    const pct = ((row.count / paperCount) * 100).toFixed(1);
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      "<td class='mono'>" + (idx + 1) + "</td>" +
+      "<td>" + escapeHtml(row.name) + "</td>" +
+      "<td class='mono'>" + escapeHtml(row.code) + "</td>" +
+      "<td class='mono'>" + row.count + "</td>" +
+      "<td class='mono'>" + pct + "%</td>";
+    tbodyEl.appendChild(tr);
+  });
 
-
-  chartEl.innerHTML =
-    buildPieSvg(
-      sliceData,
-      grandTotal
-    );
-
-
-  legendEl.innerHTML =
-    "";
-
-
-  sliceData.forEach(
-    function (item, index) {
-
-      const color =
-        PALETTE[index % PALETTE.length];
-
-
-      const pct =
-        (item.value / grandTotal * 100)
-          .toFixed(1);
-
-
-      const li =
-        document.createElement("li");
-
-      li.className =
-        "trends-legend-item";
-
-
-      li.innerHTML =
-
-        '<span class="trends-legend-swatch" style="background:' +
-        color +
-        '"></span>' +
-
-        '<span class="trends-legend-label">' +
-        escapeHtml(item.label) +
-        "</span>" +
-
-        '<span class="trends-legend-value mono">' +
-        item.value.toLocaleString() +
-        " (" + pct + "%)" +
-        "</span>";
-
-
-      legendEl.appendChild(li);
-
-    }
-  );
-
-
-  if (payload.failedCount) {
-
-    const warningLi =
-      document.createElement("li");
-
-    warningLi.className =
-      "trends-legend-item trends-legend-warning";
-
-    warningLi.textContent =
-      payload.failedCount +
-      " of " +
-      payload.totalCategories +
-      " categories could not be loaded and are omitted above.";
-
-    legendEl.appendChild(warningLi);
-  }
+  statusEl.hidden = true;
+  contentEl.hidden = false;
 }
 
-
 // =========================================================
-// SVG PIE CHART
+// UTIL
 // =========================================================
-
-function polarToCartesian(cx, cy, r, angleDeg) {
-
-  const rad =
-    (angleDeg - 90) * Math.PI / 180;
-
-
-  return {
-
-    x: cx + r * Math.cos(rad),
-
-    y: cy + r * Math.sin(rad)
-
-  };
-}
-
-
-function describeArc(cx, cy, r, startAngle, endAngle) {
-
-  const start =
-    polarToCartesian(cx, cy, r, endAngle);
-
-  const end =
-    polarToCartesian(cx, cy, r, startAngle);
-
-  const largeArcFlag =
-    endAngle - startAngle <= 180 ? "0" : "1";
-
-
-  return [
-
-    "M", cx, cy,
-    "L", start.x.toFixed(2), start.y.toFixed(2),
-    "A", r, r, 0, largeArcFlag, 0, end.x.toFixed(2), end.y.toFixed(2),
-    "Z"
-
-  ].join(" ");
-}
-
-
-function buildPieSvg(sliceData, grandTotal) {
-
-  const size =
-    260;
-
-  const cx =
-    size / 2;
-
-  const cy =
-    size / 2;
-
-  const r =
-    size / 2 - 6;
-
-
-  let angle =
-    0;
-
-  let paths =
-    "";
-
-
-  sliceData.forEach(
-    function (item, index) {
-
-      const sweep =
-        (item.value / grandTotal) * 360;
-
-
-      // A full-circle single slice needs a special case —
-      // an arc command can't sweep a full 360°.
-
-      if (sweep >= 359.999) {
-
-        paths +=
-          '<circle cx="' + cx + '" cy="' + cy +
-          '" r="' + r + '" fill="' +
-          PALETTE[index % PALETTE.length] + '"></circle>';
-
-        angle +=
-          sweep;
-
-        return;
-      }
-
-
-      const color =
-        PALETTE[index % PALETTE.length];
-
-
-      const d =
-        describeArc(cx, cy, r, angle, angle + sweep);
-
-
-      paths +=
-        '<path d="' + d + '" fill="' + color +
-        '" stroke="var(--bg-paper)" stroke-width="1.5">' +
-        "<title>" +
-        escapeHtml(item.label) +
-        ": " +
-        item.value.toLocaleString() +
-        "</title>" +
-        "</path>";
-
-
-      angle +=
-        sweep;
-
-    }
-  );
-
-
-  return (
-
-    '<svg viewBox="0 0 ' + size + " " + size +
-    '" role="img" aria-label="Pie chart of paper counts by category">' +
-
-    paths +
-
-    "</svg>"
-
-  );
-}
-
-
-// =========================================================
-// HTML ESCAPING
-// =========================================================
-
 function escapeHtml(str) {
-
   return String(str)
-
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -864,52 +344,22 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
-
 // =========================================================
 // EVENTS
 // =========================================================
-
-if (modeAllBtn) {
-
-  modeAllBtn.addEventListener(
-    "click",
-    function () {
-
-      loadTrends("all", false);
-
-    }
-  );
+if (scopeSelect) {
+  scopeSelect.addEventListener("change", function () {
+    loadTrends(scopeSelect.value, false);
+  });
 }
-
-
-if (modeMainBtn) {
-
-  modeMainBtn.addEventListener(
-    "click",
-    function () {
-
-      loadTrends("main", false);
-
-    }
-  );
-}
-
 
 if (refreshBtn) {
-
-  refreshBtn.addEventListener(
-    "click",
-    function () {
-
-      loadTrends(currentMode, true);
-
-    }
-  );
+  refreshBtn.addEventListener("click", function () {
+    loadTrends(currentScope, true);
+  });
 }
-
 
 // =========================================================
 // START
 // =========================================================
-
 loadTrends("all", false);
