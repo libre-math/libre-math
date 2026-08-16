@@ -2,16 +2,14 @@
 // arXiv Subject Trends
 //
 // Fetches the last 50 papers (all of arXiv or one main archive)
-// and builds a frequency table of the subjects/categories
-// that appear on those papers.
+// and builds a frequency table of the top 10 subjects.
 // =========================================================
 
 const API   = "https://export.arxiv.org/api/query";
 const PROXY = "https://corsproxy.io/?";
 const PAPER_LIMIT = 50;
 
-// Full official names (subset of the most common ones).
-// Unknown codes simply show the short code.
+// Full official names (most common categories)
 const CATEGORY_NAMES = {
   "cs.AI":  "Artificial Intelligence",
   "cs.AR":  "Hardware Architecture",
@@ -184,21 +182,29 @@ const scopeLabel  = document.getElementById("scope-label");
 // STATE
 // =========================================================
 let currentScope = "all";
-const cache = {};           // scope → { counts, paperCount }
+const cache = {};
 
 // =========================================================
-// QUERY BUILDERS
+// HELPERS
 // =========================================================
 function buildSearchQuery(scope) {
   if (scope === "all") {
-    return 'all:""';          // matches everything
+    return 'all:""';
   }
-  // Main archives need a wildcard so we catch all sub-categories
   return "cat:" + scope + "*";
 }
 
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 // =========================================================
-// FETCH LAST 50 PAPERS
+// FETCH
 // =========================================================
 async function fetchRecentPapers(scope) {
   const searchQuery = buildSearchQuery(scope);
@@ -224,8 +230,7 @@ async function fetchRecentPapers(scope) {
     throw new Error("Could not parse arXiv XML.");
   }
 
-  const entries = Array.from(doc.getElementsByTagName("entry"));
-  return entries;
+  return Array.from(doc.getElementsByTagName("entry"));
 }
 
 // =========================================================
@@ -235,12 +240,11 @@ function countCategories(entries) {
   const counts = Object.create(null);
 
   entries.forEach(function (entry) {
-    // All <category> elements (primary + secondary)
     const cats = entry.getElementsByTagName("category");
     for (let i = 0; i < cats.length; i++) {
       const term = cats[i].getAttribute("term");
       if (!term) continue;
-      // Skip non-arXiv schemes if any appear
+
       const scheme = cats[i].getAttribute("scheme") || "";
       if (scheme && scheme.indexOf("arxiv.org") === -1) continue;
 
@@ -252,7 +256,54 @@ function countCategories(entries) {
 }
 
 // =========================================================
-// LOAD + RENDER
+// RENDER
+// =========================================================
+function renderTable(payload) {
+  const { counts, paperCount } = payload;
+
+  if (!paperCount) {
+    statusEl.hidden = false;
+    statusEl.textContent = "No papers returned.";
+    contentEl.hidden = true;
+    return;
+  }
+
+  // Top 10 only
+  const rows = Object.keys(counts)
+    .map(function (code) {
+      return {
+        code: code,
+        name: CATEGORY_NAMES[code] || code,
+        count: counts[code]
+      };
+    })
+    .sort(function (a, b) {
+      return b.count - a.count || a.code.localeCompare(b.code);
+    })
+    .slice(0, 10);
+
+  tbodyEl.innerHTML = "";
+
+  rows.forEach(function (row, idx) {
+    const pct = ((row.count / paperCount) * 100).toFixed(1);
+    const tr = document.createElement("tr");
+
+    tr.innerHTML =
+      "<td class='rank'>" + (idx + 1) + "</td>" +
+      "<td class='subject'>" + escapeHtml(row.name) + "</td>" +
+      "<td class='code'>" + escapeHtml(row.code) + "</td>" +
+      "<td class='count'>" + row.count + "</td>" +
+      "<td class='pct'>" + pct + "%</td>";
+
+    tbodyEl.appendChild(tr);
+  });
+
+  statusEl.hidden = true;
+  contentEl.hidden = false;
+}
+
+// =========================================================
+// MAIN LOAD FUNCTION
 // =========================================================
 async function loadTrends(scope, forceRefresh) {
   currentScope = scope;
@@ -287,93 +338,10 @@ async function loadTrends(scope, forceRefresh) {
     renderTable(payload);
   } catch (err) {
     console.error(err);
-    statusEl.textContent = "Failed to load data: " + err.message;
-  }
-}
-
-function renderTable(payload) {
-  const { counts, paperCount } = payload;
-
-  if (!paperCount) {
     statusEl.hidden = false;
-    statusEl.textContent = "No papers returned.";
+    statusEl.textContent = "Failed to load data: " + err.message;
     contentEl.hidden = true;
-    return;
   }
-
-  // Sort by frequency descending and keep only the top 10
-  const rows = Object.keys(counts)
-    .map(function (code) {
-      return {
-        code: code,
-        name: CATEGORY_NAMES[code] || code,
-        count: counts[code]
-      };
-    })
-    .sort(function (a, b) {
-      return b.count - a.count || a.code.localeCompare(b.code);
-    })
-    .slice(0, 10);   // ← only the first 10
-
-  tbodyEl.innerHTML = "";
-
-  rows.forEach(function (row, idx) {
-    const pct = ((row.count / paperCount) * 100).toFixed(1);
-    const tr = document.createElement("tr");
-    tr.innerHTML =
-      "<td class='rank'>" + (idx + 1) + "</td>" +
-      "<td class='subject'>" + escapeHtml(row.name) + "</td>" +
-      "<td class='code mono'>" + escapeHtml(row.code) + "</td>" +
-      "<td class='count mono'>" + row.count + "</td>" +
-      "<td class='pct mono'>" + pct + "%</td>";
-    tbodyEl.appendChild(tr);
-  });
-
-  statusEl.hidden = true;
-  contentEl.hidden = false;
-}
-
-  // Sort by frequency descending
-  const rows = Object.keys(counts)
-    .map(function (code) {
-      return {
-        code: code,
-        name: CATEGORY_NAMES[code] || code,
-        count: counts[code]
-      };
-    })
-    .sort(function (a, b) {
-      return b.count - a.count || a.code.localeCompare(b.code);
-    });
-
-  tbodyEl.innerHTML = "";
-
-  rows.forEach(function (row, idx) {
-    const pct = ((row.count / paperCount) * 100).toFixed(1);
-    const tr = document.createElement("tr");
-    tr.innerHTML =
-      "<td class='mono'>" + (idx + 1) + "</td>" +
-      "<td>" + escapeHtml(row.name) + "</td>" +
-      "<td class='mono'>" + escapeHtml(row.code) + "</td>" +
-      "<td class='mono'>" + row.count + "</td>" +
-      "<td class='mono'>" + pct + "%</td>";
-    tbodyEl.appendChild(tr);
-  });
-
-  statusEl.hidden = true;
-  contentEl.hidden = false;
-}
-
-// =========================================================
-// UTIL
-// =========================================================
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 }
 
 // =========================================================
