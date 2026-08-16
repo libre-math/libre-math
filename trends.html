@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>arXiv Category Trends</title>
+
+  <link
+    rel="preconnect"
+    href="https://fonts.googleapis.com"
+  >
+
+  <link
+    rel="preconnect"
+    href="https://fonts.gstatic.com"
+    crossorigin
+  >
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  >
+
+  <link
+    rel="stylesheet"
+    href="arxiv.css"
+  >
+</head>
+
+<body>
+
+<a
+  class="skip-link"
+  href="#main-content"
+>
+  Skip to main content
+</a>
+
+
+<div class="report">
+
+  <header class="report-header">
+
+    <div>
+      <div class="report-agency">
+        ARXIV TECHNICAL REPORT
+      </div>
+
+      <h1 class="report-title">
+        Category Trends
+      </h1>
+    </div>
+
+
+    <div class="report-header-right">
+
+      <a
+        href="index.html"
+        class="btn btn-outline"
+      >
+        ← Explorer
+      </a>
+
+    </div>
+
+  </header>
+
+
+  <main
+    id="main-content"
+    class="report-body"
+  >
+
+    <section class="trends-intro">
+
+      <p class="trends-subtitle">
+        Submission volume by category over the
+        <strong id="trends-window-label">last 14 days</strong>.
+      </p>
+
+      <div class="trends-controls">
+
+        <div
+          class="trends-toggle"
+          role="group"
+          aria-label="Category grouping"
+        >
+
+          <button
+            id="mode-all-btn"
+            class="btn trends-toggle-btn active"
+            type="button"
+            data-mode="all"
+          >
+            All Archives
+          </button>
+
+          <button
+            id="mode-main-btn"
+            class="btn btn-outline trends-toggle-btn"
+            type="button"
+            data-mode="main"
+          >
+            Main Categories
+          </button>
+
+        </div>
+
+        <button
+          id="refresh-btn"
+          class="btn btn-outline"
+          type="button"
+        >
+          Refresh
+        </button>
+
+      </div>
+
+    </section>
+
+
+    <hr class="rule">
+
+
+    <section
+      id="trends-status"
+      class="status trends-status"
+    >
+      Loading category data…
+    </section>
+
+
+    <section
+      id="trends-content"
+      class="trends-content"
+      hidden
+    >
+
+      <div class="trends-chart-wrap">
+
+        <div
+          id="trends-chart"
+          class="trends-chart"
+        ></div>
+
+      </div>
+
+
+      <div class="trends-legend-wrap">
+
+        <ul
+          id="trends-legend"
+          class="trends-legend"
+        ></ul>
+
+        <p class="trends-caption">
+          Counts come from arXiv's own search index
+          (<span class="mono">opensearch:totalResults</span>)
+          for each category over the selected window — no
+          individual papers are downloaded to build this
+          chart. Papers cross-listed in more than one
+          category are counted once per category, so in
+          <strong>All Archives</strong> mode (which includes
+          both broad archives and specific subcategories)
+          slices can overlap and won't sum to a clean 100%
+          of unique papers.
+          <strong>Main Categories</strong> mode only counts
+          the 8 top-level, non-overlapping arXiv archives.
+        </p>
+
+      </div>
+
+    </section>
+
+  </main>
+
+
+  <footer class="report-footer">
+    arXiv Technical Report · Personal research interface
+  </footer>
+
+</div>
+
+
+<script src="trends.js"></script>
+
+</body>
+</html>
