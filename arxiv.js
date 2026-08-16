@@ -537,7 +537,6 @@ async function summarizeAbstract() {
   }
 
   if (!summary) {
-    // Fallback: local rule-based simplifier (no network needed).
     try {
       summary = simplifyAbstract(abstract);
     } catch (error) {
@@ -553,40 +552,6 @@ async function summarizeAbstract() {
 
   if (summarizeBtn) { summarizeBtn.disabled = false; }
 }
-
-  setTimeout(function () {
-    try {
-      const sentences = splitIntoSentences(abstract);
-      if (!sentences.length) throw new Error("No sentences found.");
-
-      let result = "";
-      if (sentences.length === 1) {
-        result = sentences[0];
-      } else {
-        result = sentences[0] + " " + sentences[sentences.length - 1];
-      }
-
-      result = result
-        .replace(/\s+/g, " ")
-        .replace(/\s+([,.!?])/g, "$1")
-        .trim();
-
-      if (summaryBox) {
-        summaryBox.innerHTML =
-          '<p class="summary-result">' + escapeHtml(result) + "</p>";
-      }
-    } catch (error) {
-      console.error("Key points error:", error);
-      if (summaryBox) {
-        summaryBox.innerHTML =
-          '<p class="summary-placeholder">Could not extract key points.</p>';
-      }
-    } finally {
-      if (summarizeBtn) summarizeBtn.disabled = false;
-    }
-  }, 30);
-}
-
 // =========================================================
 // WIKIPEDIA
 // =========================================================
