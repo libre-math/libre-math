@@ -2,192 +2,89 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
-
-  <title>arXiv Category Trends</title>
-
-  <link
-    rel="preconnect"
-    href="https://fonts.googleapis.com"
-  >
-
-  <link
-    rel="preconnect"
-    href="https://fonts.gstatic.com"
-    crossorigin
-  >
-
-  <link
-    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:wght@400;500;600;700&display=swap"
-    rel="stylesheet"
-  >
-
-  <link
-    rel="stylesheet"
-    href="arxiv.css"
-  >
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>arXiv Subject Trends</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="arxiv.css">
 </head>
-
 <body>
-
-<a
-  class="skip-link"
-  href="#main-content"
->
-  Skip to main content
-</a>
-
-
+<a class="skip-link" href="#main-content">Skip to main content</a>
 <div class="report">
-
   <header class="report-header">
-
     <div>
-      <div class="report-agency">
-        ARXIV TECHNICAL REPORT
-      </div>
-
-      <h1 class="report-title">
-        Category Trends
-      </h1>
+      <div class="report-agency">ARXIV TECHNICAL REPORT</div>
+      <h1 class="report-title">Subject Trends</h1>
     </div>
-
-
     <div class="report-header-right">
-
-      <a
-        href="index.html"
-        class="btn btn-outline"
-      >
-        ← Explorer
-      </a>
-
+      <a href="index.html" class="btn btn-outline">← Explorer</a>
     </div>
-
   </header>
 
-
-  <main
-    id="main-content"
-    class="report-body"
-  >
-
+  <main id="main-content" class="report-body">
     <section class="trends-intro">
-
       <p class="trends-subtitle">
-        Submission volume by category over the
-        <strong id="trends-window-label">last 14 days</strong>.
+        Most frequent subjects appearing in the
+        <strong>last 50 papers</strong>
+        <span id="scope-label">(all of arXiv)</span>.
       </p>
 
       <div class="trends-controls">
-
-        <div
-          class="trends-toggle"
-          role="group"
-          aria-label="Category grouping"
-        >
-
-          <button
-            id="mode-all-btn"
-            class="btn trends-toggle-btn active"
-            type="button"
-            data-mode="all"
-          >
-            All Archives
-          </button>
-
-          <button
-            id="mode-main-btn"
-            class="btn btn-outline trends-toggle-btn"
-            type="button"
-            data-mode="main"
-          >
-            Main Categories
-          </button>
-
+        <div class="trends-scope">
+          <label for="scope-select" class="sr-only">Scope</label>
+          <select id="scope-select" class="trends-select">
+            <option value="all" selected>All of arXiv</option>
+            <option value="physics">Physics</option>
+            <option value="math">Mathematics</option>
+            <option value="cs">Computer Science</option>
+            <option value="q-bio">Quantitative Biology</option>
+            <option value="q-fin">Quantitative Finance</option>
+            <option value="stat">Statistics</option>
+            <option value="eess">Electrical Engineering</option>
+            <option value="econ">Economics</option>
+          </select>
         </div>
-
-        <button
-          id="refresh-btn"
-          class="btn btn-outline"
-          type="button"
-        >
-          Refresh
-        </button>
-
+        <button id="refresh-btn" class="btn btn-outline" type="button">Refresh</button>
       </div>
-
     </section>
-
 
     <hr class="rule">
 
-
-    <section
-      id="trends-status"
-      class="status trends-status"
-    >
-      Loading category data…
+    <section id="trends-status" class="status trends-status">
+      Loading last 50 papers…
     </section>
 
-
-    <section
-      id="trends-content"
-      class="trends-content"
-      hidden
-    >
-
-      <div class="trends-chart-wrap">
-
-        <div
-          id="trends-chart"
-          class="trends-chart"
-        ></div>
-
+    <section id="trends-content" class="trends-content" hidden>
+      <div class="trends-table-wrap">
+        <table class="trends-table" id="trends-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Subject</th>
+              <th>Code</th>
+              <th>Count</th>
+              <th>% of papers</th>
+            </tr>
+          </thead>
+          <tbody id="trends-tbody"></tbody>
+        </table>
       </div>
 
-
-      <div class="trends-legend-wrap">
-
-        <ul
-          id="trends-legend"
-          class="trends-legend"
-        ></ul>
-
-        <p class="trends-caption">
-          Counts come from arXiv's own search index
-          (<span class="mono">opensearch:totalResults</span>)
-          for each category over the selected window — no
-          individual papers are downloaded to build this
-          chart. Papers cross-listed in more than one
-          category are counted once per category, so in
-          <strong>All Archives</strong> mode (which includes
-          both broad archives and specific subcategories)
-          slices can overlap and won't sum to a clean 100%
-          of unique papers.
-          <strong>Main Categories</strong> mode only counts
-          the 8 top-level, non-overlapping arXiv archives.
-        </p>
-
-      </div>
-
+      <p class="trends-caption">
+        Data taken from the last 50 papers returned by arXiv’s Atom API
+        (<span class="mono">sortBy=submittedDate&amp;sortOrder=descending&amp;max_results=50</span>).
+        Every category listed on a paper (primary + secondary) is counted.
+        A paper can therefore contribute to more than one row.
+        Full names come from arXiv’s official category taxonomy.
+      </p>
     </section>
-
   </main>
-
 
   <footer class="report-footer">
     arXiv Technical Report · Personal research interface
   </footer>
-
 </div>
-
-
 <script src="trends.js"></script>
-
 </body>
 </html>
