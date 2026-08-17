@@ -1,8 +1,7 @@
 // =========================================================
 // arXiv Technical Report
 // =========================================================
-const API = "https://export.arxiv.org/api/query";
-const PROXY = "https://corsproxy.io/?";
+const ARXIV_PROXY = "https://arxiv-summarizer.libremaths.workers.dev/arxiv";
 const WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php";
 const SUMMARY_WORKER_URL = "https://arxiv-summarizer.libremaths.workers.dev";
 const PAGE_SIZE = 10;
@@ -256,25 +255,15 @@ function getCategoryQuery(category) {
 // ARXIV FETCH
 // =========================================================
 async function fetchArxiv(searchQuery, start, maxResults) {
-  const query =
-    "search_query=" +
-    encodeURIComponent(searchQuery) +
-    "&sortBy=submittedDate" +
-    "&sortOrder=descending" +
-    "&start=" +
-    start +
-    "&max_results=" +
-    maxResults;
+  const params = new URLSearchParams({
+    search_query: searchQuery,
+    sortBy: "submittedDate",
+    sortOrder: "descending",
+    start: String(start),
+    max_results: String(maxResults)
+  });
 
-  // Cache-bust the *inner* arXiv URL so it's unique on every call. Without
-  // this, "latest papers" always builds the exact same request URL, and
-  // corsproxy.io (and/or the browser's own HTTP cache) will happily keep
-  // serving back whatever it cached the very first time that URL was
-  // requested - which is why the feed can look "stuck" on an old date.
-  const cacheBustedApiUrl =
-    API + "?" + query + "&_=" + Date.now();
-
-  const url = PROXY + encodeURIComponent(cacheBustedApiUrl);
+  const url = ARXIV_PROXY + "?" + params.toString();
   const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) {
     throw new Error("arXiv HTTP " + response.status);
