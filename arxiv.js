@@ -266,8 +266,16 @@ async function fetchArxiv(searchQuery, start, maxResults) {
     "&max_results=" +
     maxResults;
 
-  const url = PROXY + encodeURIComponent(API + "?" + query);
-  const response = await fetch(url);
+  // Cache-bust the *inner* arXiv URL so it's unique on every call. Without
+  // this, "latest papers" always builds the exact same request URL, and
+  // corsproxy.io (and/or the browser's own HTTP cache) will happily keep
+  // serving back whatever it cached the very first time that URL was
+  // requested - which is why the feed can look "stuck" on an old date.
+  const cacheBustedApiUrl =
+    API + "?" + query + "&_=" + Date.now();
+
+  const url = PROXY + encodeURIComponent(cacheBustedApiUrl);
+  const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) {
     throw new Error("arXiv HTTP " + response.status);
   }
