@@ -513,7 +513,7 @@ async function summarizeAbstract() {
   try {
 
     const controller = new AbortController();
-    const timeout = setTimeout(function () { controller.abort(); }, 15000);
+    const timeout = setTimeout(function () { controller.abort(); }, 45000);
 
     const response = await fetch(SUMMARY_WORKER_URL, {
       method: "POST",
