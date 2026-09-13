@@ -722,5 +722,7 @@ if (summarizeBtn) {
 // =========================================================
 if (categorySelect) {
   loadLatestPapers();
-  loadPaper(categorySelect.value, false);
+  setTimeout(function () {
+    loadPaper(categorySelect.value, false);
+  }, 1000); // stagger by 1 second
 }
