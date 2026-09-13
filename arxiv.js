@@ -1,7 +1,7 @@
 // =========================================================
 // arXiv Technical Report
 // =========================================================
-const ARXIV_PROXY = "https://arxiv-summarizer.libremaths.workers.dev/arxiv";
+const ARXIV_PROXY = "https://export.arxiv.org/api/query";
 const WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php";
 const SUMMARY_WORKER_URL = "https://arxiv-summarizer.libremaths.workers.dev";
 const PAGE_SIZE = 10;
