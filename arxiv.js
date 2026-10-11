@@ -533,13 +533,10 @@ async function summarizeAbstract() {
     console.warn("HF Worker summary failed, falling back to local simplifier:", error);
   }
 
-  if (!summary) {
-    try {
-      summary = simplifyAbstract(abstract);
-    } catch (error) {
-      console.error("Local simplification error:", error);
-    }
-  }
+ if (!summary) {
+console.error("Worker did not return a summary.");
+}
+
 
   if (summaryBox) {
     summaryBox.innerHTML = summary
