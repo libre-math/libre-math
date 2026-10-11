@@ -709,7 +709,4 @@ if (categorySelect) {
     loadPaper(categorySelect.value, false);
   }, 1000);
 }
-'''
-path = Path("/mnt/data/arxiv.js")
-path.write_text(js, encoding="utf-8")
-print(f"Created {path} ({len(js.splitlines())} lines, {path.stat().st_size} bytes)")
+
