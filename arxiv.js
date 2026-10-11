@@ -1,6 +1,4 @@
-from pathlib import Path
-
-js = r'''// =========================================================
+// =========================================================
 // arXiv Technical Report
 // =========================================================
 const ARXIV_PROXY = "https://arxiv-summarizer.libremaths.workers.dev/arxiv";
