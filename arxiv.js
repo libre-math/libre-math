@@ -1,4 +1,6 @@
-// =========================================================
+from pathlib import Path
+
+js = r'''// =========================================================
 // arXiv Technical Report
 // =========================================================
 const ARXIV_PROXY = "https://arxiv-summarizer.libremaths.workers.dev/arxiv";
@@ -157,7 +159,7 @@ function resetSummary() {
   if (summaryBox) {
     summaryBox.innerHTML =
       '<p class="summary-placeholder">' +
-      'Click “Extract” to show the first and last sentence of the abstract.' +
+      'Click “Extract” to simplify the abstract.' +
       "</p>";
   }
 }
@@ -217,7 +219,7 @@ function parseEntries(xmlText) {
 }
 
 // =========================================================
-// CATEGORY QUERY (FIXED)
+// CATEGORY QUERY
 // =========================================================
 function getCategoryQuery(category) {
   if (category === "q-fin") {
@@ -229,16 +231,8 @@ function getCategoryQuery(category) {
   }
 
   const needsWildcard = new Set([
-    "physics",
-    "math",
-    "cs",
-    "q-bio",
-    "stat",
-    "eess",
-    "econ",
-    "nlin",
-    "astro-ph",
-    "cond-mat"
+    "physics", "math", "cs", "q-bio", "stat", "eess",
+    "econ", "nlin", "astro-ph", "cond-mat"
   ]);
 
   if (needsWildcard.has(category)) {
@@ -288,11 +282,7 @@ async function loadLatestPapers() {
   }
 
   try {
-    const papers = await fetchArxiv(
-      getCategoryQuery(category),
-      0,
-      LATEST_COUNT
-    );
+    const papers = await fetchArxiv(getCategoryQuery(category), 0, LATEST_COUNT);
     if (requestId !== latestRequestId) return;
     latestPapers = papers;
     renderLatestPapers(papers);
@@ -368,9 +358,7 @@ async function loadPaper(category, random) {
 
   const catQuery = getCategoryQuery(category);
   let start = 0;
-  if (random) {
-    start = Math.floor(Math.random() * 200);
-  }
+  if (random) start = Math.floor(Math.random() * 200);
 
   try {
     const papers = await fetchArxiv(catQuery, start, 1);
@@ -412,15 +400,10 @@ async function runSearch(start) {
     const cats = Array.from(categorySelect.options).map(function (option) {
       return option.value;
     });
-    const catPart = cats
-      .map(function (category) {
-        return getCategoryQuery(category);
-      })
-      .join(" OR ");
+    const catPart = cats.map(getCategoryQuery).join(" OR ");
     searchQuery = "(" + catPart + ') AND ti:"' + keyword + '"';
   } else {
-    const category = categorySelect.value;
-    searchQuery = getCategoryQuery(category) + ' AND ti:"' + keyword + '"';
+    searchQuery = getCategoryQuery(categorySelect.value) + ' AND ti:"' + keyword + '"';
   }
 
   try {
@@ -472,26 +455,11 @@ async function runSearch(start) {
 }
 
 // =========================================================
-// KEY POINTS = FIRST + LAST SENTENCE
+// ABSTRACT SIMPLIFICATION — CLOUDFLARE WORKER ONLY
 // =========================================================
-function splitIntoSentences(text) {
-  return text
-    .replace(/\s+/g, " ")
-    .trim()
-    .split(/(?<=[.!?])\s+(?=[A-Z])/)
-    .map(function (sentence) {
-      return sentence.trim();
-    })
-    .filter(Boolean);
-}
-
 async function summarizeAbstract() {
-
-  const abstractEl =
-    document.getElementById("paper-abstract");
-
-  const abstract =
-    abstractEl ? abstractEl.textContent.trim() : "";
+  const abstractEl = document.getElementById("paper-abstract");
+  const abstract = abstractEl ? abstractEl.textContent.trim() : "";
 
   if (!abstract) {
     if (summaryBox) {
@@ -501,51 +469,71 @@ async function summarizeAbstract() {
     return;
   }
 
-  if (summarizeBtn) { summarizeBtn.disabled = true; }
-
+  if (summarizeBtn) summarizeBtn.disabled = true;
   if (summaryBox) {
     summaryBox.innerHTML =
       '<p class="summary-loading">Making it simpler…</p>';
   }
 
-  let summary = "";
-
   try {
-
     const controller = new AbortController();
-    const timeout = setTimeout(function () { controller.abort(); }, 60000);
+    const timeout = setTimeout(function () {
+      controller.abort();
+    }, 60000);
 
-    const response = await fetch(SUMMARY_WORKER_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: abstract }),
-      signal: controller.signal
-    });
-
-    clearTimeout(timeout);
-
-    if (response.ok) {
-      const data = await response.json();
-      summary = (data.summary || "").trim();
+    let response;
+    try {
+      response = await fetch(SUMMARY_WORKER_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: abstract }),
+        signal: controller.signal
+      });
+    } finally {
+      clearTimeout(timeout);
     }
 
+    const responseText = await response.text();
+    console.log("Summary Worker HTTP status:", response.status);
+    console.log("Summary Worker response:", responseText);
+
+    if (!response.ok) {
+      throw new Error("Worker HTTP " + response.status + ": " + responseText);
+    }
+
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (error) {
+      throw new Error("Worker returned invalid JSON: " + responseText);
+    }
+
+    const summary = typeof data.summary === "string" ? data.summary.trim() : "";
+
+    if (!summary) {
+      console.error("Worker response contains no non-empty 'summary' field:", data);
+      if (summaryBox) {
+        summaryBox.innerHTML =
+          '<p class="summary-placeholder">The summarization service returned no summary. Check the browser console for the Worker response.</p>';
+      }
+      return;
+    }
+
+    if (summaryBox) {
+      summaryBox.innerHTML =
+        '<p class="summary-result">' + escapeHtml(summary) + "</p>";
+    }
   } catch (error) {
-    console.warn("HF Worker summary failed, falling back to local simplifier:", error);
+    console.error("Cloudflare Worker summarization failed:", error);
+    if (summaryBox) {
+      summaryBox.innerHTML =
+        '<p class="summary-placeholder">Could not simplify this abstract. Check the browser console for the Worker error.</p>';
+    }
+  } finally {
+    if (summarizeBtn) summarizeBtn.disabled = false;
   }
-
- if (!summary) {
-console.error("Worker did not return a summary.");
 }
 
-
-  if (summaryBox) {
-    summaryBox.innerHTML = summary
-      ? '<p class="summary-result">' + escapeHtml(summary) + "</p>"
-      : '<p class="summary-placeholder">I could not simplify this abstract.</p>';
-  }
-
-  if (summarizeBtn) { summarizeBtn.disabled = false; }
-}
 // =========================================================
 // WIKIPEDIA
 // =========================================================
@@ -706,7 +694,7 @@ if (nextBtn) {
 
 if (randomPaperBtn) {
   randomPaperBtn.addEventListener("click", function () {
-    loadPaper(categorySelect.value, true);
+    if (categorySelect) loadPaper(categorySelect.value, true);
   });
 }
 
@@ -721,5 +709,9 @@ if (categorySelect) {
   loadLatestPapers();
   setTimeout(function () {
     loadPaper(categorySelect.value, false);
-  }, 1000); // stagger by 1 second
+  }, 1000);
 }
+'''
+path = Path("/mnt/data/arxiv.js")
+path.write_text(js, encoding="utf-8")
+print(f"Created {path} ({len(js.splitlines())} lines, {path.stat().st_size} bytes)")
