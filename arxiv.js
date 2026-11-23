@@ -7,6 +7,15 @@ const SUMMARY_WORKER_URL = "https://arxiv-summarizer.libremaths.workers.dev";
 const PAGE_SIZE = 10;
 const LATEST_COUNT = 5;
 
+// One request per category feeds "latest", "newest" and "random".
+const POOL_SIZE = 100;
+
+// arXiv asks for at most one request every 3 seconds.
+const MIN_REQUEST_GAP_MS = 3100;
+const MAX_RETRIES = 2;
+const MAX_RETRY_WAIT_MS = 15000;
+const CLIENT_CACHE_MS = 10 * 60 * 1000;
+
 // =========================================================
 // DOM
 // =========================================================
@@ -35,6 +44,7 @@ const wikipediaList = document.getElementById("wikipedia-list");
 let currentStart = 0;
 let lastIsAll = false;
 let latestPapers = [];
+let categoryPool = [];
 let currentPaper = null;
 let latestRequestId = 0;
 
@@ -244,6 +254,38 @@ function getCategoryQuery(category) {
 }
 
 // =========================================================
+// RATE LIMITING (one arXiv request at a time, ≥3 s apart)
+// =========================================================
+const responseCache = new Map();
+let requestQueue = Promise.resolve();
+let lastRequestAt = 0;
+
+function sleep(ms) {
+  return new Promise(function (resolve) {
+    setTimeout(resolve, ms);
+  });
+}
+
+function throttled(task) {
+  const run = requestQueue.then(async function () {
+    const wait = lastRequestAt + MIN_REQUEST_GAP_MS - Date.now();
+    if (wait > 0) await sleep(wait);
+    lastRequestAt = Date.now();
+    return task();
+  });
+  // Keep the queue alive even if this task fails.
+  requestQueue = run.catch(function () {});
+  return run;
+}
+
+function retryDelay(response, attempt) {
+  const header = response.headers.get("Retry-After");
+  const seconds = header ? parseInt(header, 10) : NaN;
+  const ms = Number.isFinite(seconds) ? seconds * 1000 : 3000 * Math.pow(2, attempt);
+  return Math.min(ms, MAX_RETRY_WAIT_MS);
+}
+
+// =========================================================
 // ARXIV FETCH
 // =========================================================
 async function fetchArxiv(searchQuery, start, maxResults) {
@@ -256,41 +298,98 @@ async function fetchArxiv(searchQuery, start, maxResults) {
   });
 
   const url = ARXIV_PROXY + "?" + params.toString();
-  const response = await fetch(url, { cache: "no-store" });
-  if (!response.ok) {
-    throw new Error("arXiv HTTP " + response.status);
+
+  const cached = responseCache.get(url);
+  if (cached && Date.now() - cached.time < CLIENT_CACHE_MS) {
+    return cached.papers;
   }
-  const text = await response.text();
-  return parseEntries(text);
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const response = await throttled(function () {
+      return fetch(url);
+    });
+
+    if (response.status === 429 || response.status === 503) {
+      if (attempt === MAX_RETRIES) {
+        throw new Error("arXiv HTTP " + response.status + " (rate limited)");
+      }
+      const delay = retryDelay(response, attempt);
+      console.warn("arXiv rate limited, retrying in " + delay + " ms");
+      await sleep(delay);
+      continue;
+    }
+
+    if (!response.ok) {
+      throw new Error("arXiv HTTP " + response.status);
+    }
+
+    const papers = parseEntries(await response.text());
+    responseCache.set(url, { time: Date.now(), papers: papers });
+    return papers;
+  }
+
+  throw new Error("arXiv request failed");
 }
 
 // =========================================================
-// LOAD LATEST FIVE
+// LOAD CATEGORY (latest five + newest paper, one request)
 // =========================================================
-async function loadLatestPapers() {
+async function loadCategory() {
   if (!categorySelect) return;
   const requestId = ++latestRequestId;
   const category = categorySelect.value;
-  const categoryName = getCategoryName();
 
-  if (latestCategory) latestCategory.textContent = categoryName;
+  if (latestCategory) latestCategory.textContent = getCategoryName();
   if (latestList) {
     latestList.innerHTML =
       '<div class="latest-loading">Loading latest papers…</div>';
   }
+  if (resultsSection) resultsSection.hidden = true;
+  showStatus("Loading newest paper…");
 
   try {
-    const papers = await fetchArxiv(getCategoryQuery(category), 0, LATEST_COUNT);
+    const papers = await fetchArxiv(getCategoryQuery(category), 0, POOL_SIZE);
     if (requestId !== latestRequestId) return;
-    latestPapers = papers;
-    renderLatestPapers(papers);
+
+    categoryPool = papers;
+    latestPapers = papers.slice(0, LATEST_COUNT);
+    renderLatestPapers(latestPapers);
+
+    if (papers.length) {
+      showPaper(papers[0]);
+    } else {
+      showStatus("No papers found in this category.");
+    }
   } catch (error) {
-    console.error("Latest papers error:", error);
+    if (requestId !== latestRequestId) return;
+    console.error("Category load error:", error);
+    categoryPool = [];
     if (latestList) {
       latestList.innerHTML =
         '<div class="latest-loading">Could not load latest papers.</div>';
     }
+    showStatus("arXiv is busy right now. Please try again in a minute.");
   }
+}
+
+// =========================================================
+// RANDOM PAPER (picked from the cached pool, no new request)
+// =========================================================
+function showRandomPaper() {
+  if (!categoryPool.length) {
+    loadCategory();
+    return;
+  }
+
+  let pick = categoryPool[Math.floor(Math.random() * categoryPool.length)];
+  if (categoryPool.length > 1 && currentPaper) {
+    while (pick.arxivId === currentPaper.arxivId) {
+      pick = categoryPool[Math.floor(Math.random() * categoryPool.length)];
+    }
+  }
+
+  if (resultsSection) resultsSection.hidden = true;
+  showPaper(pick);
 }
 
 // =========================================================
@@ -342,33 +441,9 @@ function refreshLatestHighlight() {
   items.forEach(function (item) {
     item.classList.toggle(
       "active",
-      currentPaper && item.dataset.arxivId === currentPaper.arxivId
+      Boolean(currentPaper && item.dataset.arxivId === currentPaper.arxivId)
     );
   });
-}
-
-// =========================================================
-// LOAD NEWEST / RANDOM
-// =========================================================
-async function loadPaper(category, random) {
-  showStatus(random ? "Loading random paper…" : "Loading newest paper…");
-  if (resultsSection) resultsSection.hidden = true;
-
-  const catQuery = getCategoryQuery(category);
-  let start = 0;
-  if (random) start = Math.floor(Math.random() * 200);
-
-  try {
-    const papers = await fetchArxiv(catQuery, start, 1);
-    if (!papers.length) {
-      showStatus("No papers found in this category.");
-      return;
-    }
-    showPaper(papers[0]);
-  } catch (error) {
-    console.error(error);
-    showStatus("Could not reach arXiv. See console.");
-  }
 }
 
 // =========================================================
@@ -447,7 +522,7 @@ async function runSearch(start) {
     console.error(error);
     if (resultsBox) {
       resultsBox.innerHTML =
-        '<div class="status" style="padding:1rem">Search failed.</div>';
+        '<div class="status" style="padding:1rem">Search failed — arXiv may be busy. Try again in a minute.</div>';
     }
   }
 }
@@ -647,9 +722,7 @@ if (categorySelect) {
   categorySelect.addEventListener("change", function () {
     lastIsAll = false;
     currentStart = 0;
-    if (resultsSection) resultsSection.hidden = true;
-    loadLatestPapers();
-    loadPaper(categorySelect.value, false);
+    loadCategory();
   });
 }
 
@@ -691,9 +764,7 @@ if (nextBtn) {
 }
 
 if (randomPaperBtn) {
-  randomPaperBtn.addEventListener("click", function () {
-    if (categorySelect) loadPaper(categorySelect.value, true);
-  });
+  randomPaperBtn.addEventListener("click", showRandomPaper);
 }
 
 if (summarizeBtn) {
@@ -704,9 +775,5 @@ if (summarizeBtn) {
 // START
 // =========================================================
 if (categorySelect) {
-  loadLatestPapers();
-  setTimeout(function () {
-    loadPaper(categorySelect.value, false);
-  }, 1000);
+  loadCategory();
 }
-
