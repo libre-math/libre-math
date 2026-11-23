@@ -8,7 +8,7 @@ const PAGE_SIZE = 10;
 const LATEST_COUNT = 5;
 
 // One request per category feeds "latest", "newest" and "random".
-const POOL_SIZE = 100;
+const POOL_SIZE = 20;
 
 // arXiv asks for at most one request every 3 seconds.
 const MIN_REQUEST_GAP_MS = 3100;
